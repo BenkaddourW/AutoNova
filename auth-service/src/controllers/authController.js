@@ -10,7 +10,6 @@ const {
 const bcrypt = require("bcrypt");
 
 // Enregistrement utilisateur
-
 exports.register = async (req, res) => {
   try {
     const {
@@ -163,4 +162,95 @@ exports.login = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
+};
+
+// Rafraîchir le token d'accès
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token requis." });
+    }
+
+    // Vérifier si le refresh token existe en base
+    const session = await TokenSession.findOne({
+      where: { token: refreshToken, type: "refresh" },
+    });
+    if (!session) {
+      return res.status(401).json({ message: "Refresh token invalide." });
+    }
+
+    // Vérifier la validité du refresh token
+    let payload;
+    try {
+      payload = verifyToken(refreshToken);
+    } catch (err) {
+      return res
+        .status(401)
+        .json({ message: "Refresh token expiré ou invalide." });
+    }
+
+    // Générer un nouveau access token
+    const newAccessToken = generateAccessToken({
+      idutilisateur: payload.idutilisateur,
+      email: payload.email,
+      nom: payload.nom,
+      prenom: payload.prenom,
+      role: payload.role,
+    });
+
+    res.json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur.", error: error.message });
+  }
+};
+// Middleware pour vérifier l'authentification
+exports.authenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Token d'accès requis." });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const payload = verifyToken(token);
+
+    // Vérifier si l'utilisateur existe
+    const utilisateur = await Utilisateur.findByPk(payload.idutilisateur);
+    if (!utilisateur) {
+      return res.status(401).json({ message: "Utilisateur non trouvé." });
+    }
+
+    req.utilisateur = utilisateur; // Ajouter l'utilisateur à la requête
+    next();
+  } catch (error) {
+    res
+      .status(401)
+      .json({ message: "Token invalide ou expiré.", error: error.message });
+  }
+};
+// Middleware pour vérifier le rôle de l'utilisateur
+exports.authorize = (roles) => {
+  return async (req, res, next) => {
+    try {
+      const utilisateur = req.utilisateur; // Récupérer l'utilisateur de la requête
+      if (!utilisateur) {
+        return res.status(403).json({ message: "Accès interdit." });
+      }
+
+      // Vérifier si l'utilisateur a un des rôles autorisés
+      const utilisateurRole = await UtilisateurRole.findOne({
+        where: { idutilisateur: utilisateur.idutilisateur },
+      });
+      if (!utilisateurRole || !roles.includes(utilisateurRole.idrole)) {
+        return res.status(403).json({ message: "Accès interdit." });
+      }
+
+      next();
+    } catch (error) {
+      res
+        .status(500)
+        .json({ message: "Erreur serveur.", error: error.message });
+    }
+  };
 };
