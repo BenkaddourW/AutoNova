@@ -1,9 +1,9 @@
 const dotenv = require("dotenv");
-const express = require('express');
+const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const vehiculeRoutes = require("./routes/vehiculeRoutes");
+const reservationRoutes = require("./routes/reservationRoutes");
 
 dotenv.config();
 
@@ -15,8 +15,8 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
 
-
+app.use("/api/reservations", reservationRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Vehicule Service running on http://localhost:${PORT}`);
+  console.log(`Reservation Service running on http://localhost:${PORT}`);
 });

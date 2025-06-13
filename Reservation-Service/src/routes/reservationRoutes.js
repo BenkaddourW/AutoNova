@@ -1,16 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const authenticateToken = require("../middlewares/authMiddleware");
-const vehiculeController = require("../controllers/vehiculeController");
-
+const reservationController = require("../controllers/reservationController");
 
 // Protège toutes les routes du CRUD :
 // router.use(authenticateToken);
 
-router.get("/", vehiculeController.getVehicules);
-router.get("/:id", vehiculeController.getVehiculeById);
-router.post("/", vehiculeController.createVehicule);
-router.put("/:id", vehiculeController.updateVehicule);
-router.delete("/:id", vehiculeController.deleteVehicule);
+router.get("/", reservationController.getReservations);
+router.get("/:id", reservationController.getReservationById);
+router.post("/", reservationController.createReservation);
+router.put("/:id", reservationController.updateReservation);
+router.delete("/:id", reservationController.deleteReservation);
 
 module.exports = router;
