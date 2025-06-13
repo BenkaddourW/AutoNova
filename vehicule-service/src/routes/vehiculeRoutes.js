@@ -5,7 +5,7 @@ const vehiculeController = require("../controllers/vehiculeController");
 
 
 // Protège toutes les routes du CRUD :
-router.use(authenticateToken);
+// router.use(authenticateToken);
 
 router.get("/", vehiculeController.getVehicules);
 router.get("/:id", vehiculeController.getVehiculeById);

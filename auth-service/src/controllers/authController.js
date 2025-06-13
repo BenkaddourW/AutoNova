@@ -184,6 +184,7 @@ exports.refreshToken = async (req, res) => {
     let payload;
     try {
       payload = verifyToken(refreshToken);
+      
     } catch (err) {
       return res
         .status(401)

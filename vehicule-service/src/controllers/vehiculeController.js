@@ -63,3 +63,52 @@ exports.deleteVehicule = async (req, res) => {
 
   }
 };
+
+// filtre par marque, catégorie, statut
+exports.getVehicules = async (req, res) => {
+  try {
+    // Récupère les paramètres de filtre de la requête
+    const { marque, categorie, statut } = req.query;
+
+    // Construis la condition WHERE dynamiquement
+    const where = {};
+    if (marque) where.marque = marque;
+    if (categorie) where.categorie = categorie;
+    if (statut) where.statut = statut;
+
+    const vehicules = await Vehicule.findAll({ where });
+    res.json(vehicules);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+
+// tous les types de filtres
+const { Op } = require("sequelize");
+
+exports.getVehicules = async (req, res) => {
+  try {
+    const { marque, categorie, statut, kilometrageMin, kilometrageMax } = req.query;
+    const where = {};
+
+    if (marque) where.marque = { [Op.iLike]: `%${marque}%` };
+    if (categorie) where.categorie = categorie;
+    if (statut) where.statut = statut;
+
+    if (kilometrageMin) where.kilometrage = { [Op.gte]: Number(kilometrageMin) };
+    if (kilometrageMax) {
+      where.kilometrage = {
+        ...(where.kilometrage || {}),
+        [Op.lte]: Number(kilometrageMax)
+      };
+    }
+
+    const vehicules = await Vehicule.findAll({ where });
+    res.json(vehicules);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+};
