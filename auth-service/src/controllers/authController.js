@@ -1,75 +1,37 @@
-const Utilisateur = require("../models/utilisateur");
-const TokenSession = require("../models/token_session");
+const { Utilisateur, Client, Employe } = require("../config/database");
 const Role = require("../models/role");
 const UtilisateurRole = require("../models/utilisateur_role");
+const bcrypt = require("bcrypt");
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyToken,
 } = require("../utils/jwtUtils");
-const bcrypt = require("bcrypt");
+const TokenSession = require("../models/token_session");
 
-// Enregistrement utilisateur
+// Inscription de base
 exports.register = async (req, res) => {
   try {
-    const {
-      email,
-      motdepasse,
-      nom,
-      prenom,
-      adresse1,
-      adresse2,
-      ville,
-      codepostal,
-      province,
-      pays,
-      numerotelephone,
-      numeromobile,
-      role, // le rôle à attribuer, ex: "client"
-    } = req.body;
+    const { email, motdepasse, nom, prenom, role } = req.body;
 
-    // Vérification des champs obligatoires
-    if (
-      !email ||
-      !motdepasse ||
-      !nom ||
-      !prenom ||
-      !adresse1 ||
-      !ville ||
-      !codepostal ||
-      !province ||
-      !pays ||
-      !numerotelephone ||
-      !role
-    ) {
-      return res.status(400).json({
-        message: "Tous les champs obligatoires doivent être remplis.",
-      });
+    if (!email || !motdepasse || !nom || !prenom || !role) {
+      return res
+        .status(400)
+        .json({ message: "Champs obligatoires manquants." });
     }
 
-    // Vérifier si l'utilisateur existe déjà
     const utilisateurExiste = await Utilisateur.findOne({ where: { email } });
     if (utilisateurExiste) {
       return res.status(409).json({ message: "Cet email est déjà utilisé." });
     }
 
-    // Hacher le mot de passe
     const hash = await bcrypt.hash(motdepasse, 10);
 
-    // Créer l'utilisateur
     const nouvelUtilisateur = await Utilisateur.create({
       email,
       motdepasse: hash,
       nom,
       prenom,
-      adresse1,
-      adresse2,
-      ville,
-      codepostal,
-      province,
-      pays,
-      numerotelephone,
-      numeromobile,
     });
 
     // Associer le rôle
@@ -92,6 +54,84 @@ exports.register = async (req, res) => {
         role: roleObj.role,
       },
     });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur.", error: error.message });
+  }
+};
+
+// Complétion du profil utilisateur
+exports.completeProfile = async (req, res) => {
+  try {
+    const { idutilisateur } = req.user; // suppose un middleware d'authentification
+    const {
+      adresse1,
+      adresse2,
+      ville,
+      codepostal,
+      province,
+      pays,
+      numerotelephone,
+      numeromobile,
+      // Champs spécifiques client
+      codeclient,
+      numeropc,
+      paysdelivrance,
+      autoritedelivrance,
+      datenaissance,
+      dateexpiration,
+      // Champs spécifiques employé/admin
+      codeemploye,
+      dateembauche,
+      datedepart,
+      idsuccursale,
+    } = req.body;
+
+    // Mise à jour du profil utilisateur
+    await Utilisateur.update(
+      {
+        adresse1,
+        adresse2,
+        ville,
+        codepostal,
+        province,
+        pays,
+        numerotelephone,
+        numeromobile,
+      },
+      { where: { idutilisateur } }
+    );
+
+    // Récupérer le rôle de l'utilisateur
+    const utilisateurRole = await UtilisateurRole.findOne({
+      where: { idutilisateur },
+    });
+    const roleObj = await Role.findOne({
+      where: { idrole: utilisateurRole.idrole },
+    });
+
+    if (roleObj.role === "client") {
+      // Créer ou mettre à jour le profil client
+      await Client.upsert({
+        idutilisateur,
+        codeclient,
+        numeropc,
+        paysdelivrance,
+        autoritedelivrance,
+        datenaissance,
+        dateexpiration,
+      });
+    } else if (roleObj.role === "employe" || roleObj.role === "admin") {
+      // Créer ou mettre à jour le profil employé (pour employe ET admin)
+      await Employe.upsert({
+        idutilisateur,
+        codeemploye,
+        dateembauche,
+        datedepart,
+        idsuccursale,
+      });
+    }
+
+    res.json({ message: "Profil complété avec succès." });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
@@ -172,7 +212,6 @@ exports.refreshToken = async (req, res) => {
       return res.status(400).json({ message: "Refresh token requis." });
     }
 
-    // Vérifier si le refresh token existe en base
     const session = await TokenSession.findOne({
       where: { token: refreshToken, type: "refresh" },
     });
@@ -180,7 +219,6 @@ exports.refreshToken = async (req, res) => {
       return res.status(401).json({ message: "Refresh token invalide." });
     }
 
-    // Vérifier la validité du refresh token
     let payload;
     try {
       payload = verifyToken(refreshToken);
@@ -190,7 +228,6 @@ exports.refreshToken = async (req, res) => {
         .json({ message: "Refresh token expiré ou invalide." });
     }
 
-    // Générer un nouveau access token
     const newAccessToken = generateAccessToken({
       idutilisateur: payload.idutilisateur,
       email: payload.email,
@@ -203,54 +240,4 @@ exports.refreshToken = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
-};
-// Middleware pour vérifier l'authentification
-exports.authenticate = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Token d'accès requis." });
-    }
-
-    const token = authHeader.split(" ")[1];
-    const payload = verifyToken(token);
-
-    // Vérifier si l'utilisateur existe
-    const utilisateur = await Utilisateur.findByPk(payload.idutilisateur);
-    if (!utilisateur) {
-      return res.status(401).json({ message: "Utilisateur non trouvé." });
-    }
-
-    req.utilisateur = utilisateur; // Ajouter l'utilisateur à la requête
-    next();
-  } catch (error) {
-    res
-      .status(401)
-      .json({ message: "Token invalide ou expiré.", error: error.message });
-  }
-};
-// Middleware pour vérifier le rôle de l'utilisateur
-exports.authorize = (roles) => {
-  return async (req, res, next) => {
-    try {
-      const utilisateur = req.utilisateur; // Récupérer l'utilisateur de la requête
-      if (!utilisateur) {
-        return res.status(403).json({ message: "Accès interdit." });
-      }
-
-      // Vérifier si l'utilisateur a un des rôles autorisés
-      const utilisateurRole = await UtilisateurRole.findOne({
-        where: { idutilisateur: utilisateur.idutilisateur },
-      });
-      if (!utilisateurRole || !roles.includes(utilisateurRole.idrole)) {
-        return res.status(403).json({ message: "Accès interdit." });
-      }
-
-      next();
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erreur serveur.", error: error.message });
-    }
-  };
 };

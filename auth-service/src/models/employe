@@ -1,0 +1,47 @@
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
+const Utilisateur = require("./utilisateur");
+
+const Employe = sequelize.define(
+  "Employe",
+  {
+    idemploye: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    codeemploye: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    dateembauche: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    datedepart: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    idutilisateur: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: Utilisateur,
+        key: "idutilisateur",
+      },
+    },
+    idsuccursale: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+  },
+  {
+    tableName: "employe",
+    timestamps: false,
+  }
+);
+
+Employe.belongsTo(Utilisateur, { foreignKey: "idutilisateur" });
+
+module.exports = Employe;
