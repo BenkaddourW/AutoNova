@@ -1,4 +1,5 @@
 const Vehicule = require("../models/vehicule");
+const { Op } = require("sequelize");
 
 // Obtenir tous les vehicules
 exports.getVehicules = async (req, res) => {
@@ -86,22 +87,57 @@ exports.getVehicules = async (req, res) => {
 
 
 // tous les types de filtres
-const { Op } = require("sequelize");
 
+
+
+// GET /api/vehicules?marque=...&categorie=...&statut=...&kilometrageMin=...&kilometrageMax=...&tarifjournalierMin=...&tarifjournalierMax=...&energie=...&transmission=...&siegesMin=...&siegesMax=...&succursaleidsuccursale=...
 exports.getVehicules = async (req, res) => {
   try {
-    const { marque, categorie, statut, kilometrageMin, kilometrageMax } = req.query;
+    const {
+      marque,
+      categorie,
+      statut,
+      kilometrageMin,
+      kilometrageMax,
+      tarifjournalierMin,
+      tarifjournalierMax,
+      energie,
+      transmission,
+      siegesMin,
+      siegesMax,
+      succursaleidsuccursale
+    } = req.query;
+
     const where = {};
 
-    if (marque) where.marque = { [Op.iLike]: `%${marque}%` };
-    if (categorie) where.categorie = categorie;
+    if (marque) where.marque = { [Op.iLike]: `%${marque}%` }; // recherche partielle, insensible à la casse
+    if (categorie) where.categorie = { [Op.iLike]: `%${categorie}%` };
     if (statut) where.statut = statut;
+    if (energie) where.energie = energie;
+    if (transmission) where.transmission = transmission;
+    if (succursaleidsuccursale) where.succursaleidsuccursale = succursaleidsuccursale;
 
     if (kilometrageMin) where.kilometrage = { [Op.gte]: Number(kilometrageMin) };
     if (kilometrageMax) {
       where.kilometrage = {
         ...(where.kilometrage || {}),
         [Op.lte]: Number(kilometrageMax)
+      };
+    }
+
+    if (tarifjournalierMin) where.tarifjournalier = { [Op.gte]: Number(tarifjournalierMin) };
+    if (tarifjournalierMax) {
+      where.tarifjournalier = {
+        ...(where.tarifjournalier || {}),
+        [Op.lte]: Number(tarifjournalierMax)
+      };
+    }
+
+    if (siegesMin) where.sieges = { [Op.gte]: Number(siegesMin) };
+    if (siegesMax) {
+      where.sieges = {
+        ...(where.sieges || {}),
+        [Op.lte]: Number(siegesMax)
       };
     }
 
@@ -112,3 +148,7 @@ exports.getVehicules = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+// pagination
+const { limit = 10, offset = 0 } = req.query;
+const vehicules = await Vehicule.findAll({ where, limit: Number(limit), offset: Number(offset) });
+

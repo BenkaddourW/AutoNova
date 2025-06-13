@@ -1,4 +1,5 @@
 const Succursale = require("../models/succursale");
+const { Op } = require("sequelize");
 
 exports.getSuccursales = async (req, res) => {
   try {
@@ -60,3 +61,42 @@ exports.deleteSuccursale = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
+
+
+// GET /api/succursales?ville=...&province=...&pays=...&nomsuccursale=...&codeagence=...
+exports.getSuccursales = async (req, res) => {
+  try {
+    const {
+      ville,
+      province,
+      pays,
+      nomsuccursale,
+      codeagence,
+      codepostal
+    } = req.query;
+
+    const where = {};
+
+    if (ville) where.ville = { [Op.iLike]: `%${ville}%` };
+    if (province) where.province = province;
+    if (pays) where.pays = pays;
+    if (nomsuccursale) where.nomsuccursale = { [Op.iLike]: `%${nomsuccursale}%` };
+    if (codeagence) where.codeagence = { [Op.iLike]: `%${codeagence}%` };
+    if (codepostal) where.codepostal = codepostal;
+
+    const succursales = await Succursale.findAll({ where });
+    res.json(succursales);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+// Pagination
+const { limit = 10, offset = 0 } = req.query;
+const succursales = await Succursale.findAll({
+  where,
+  limit: Number(limit),
+  offset: Number(offset)
+});
