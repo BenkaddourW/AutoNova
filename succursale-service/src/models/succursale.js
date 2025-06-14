@@ -55,3 +55,4 @@ const Succursale = sequelize.define(
 );
 
 module.exports = Succursale;
+

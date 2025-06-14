@@ -1,10 +1,58 @@
 const Vehicule = require("../models/vehicule");
 const { Op } = require("sequelize");
 
-// Obtenir tous les vehicules
+
+// Obtenir tous les vehicules avec filtres optionnels et pagination
 exports.getVehicules = async (req, res) => {
   try {
-    const vehicules = await Vehicule.findAll();
+    // const vehicules = await Vehicule.findAll();
+    const {
+      marque,
+      categorie,
+      statut,
+      kilometrageMin,
+      kilometrageMax,
+      tarifjournalierMin,
+      tarifjournalierMax,
+      energie,
+      transmission,
+      siegesMin,
+      siegesMax,
+      succursaleidsuccursale,
+      limit = 10,
+      offset = 0,
+    } = req.query;
+
+    const where = {};
+
+    if (marque) where.marque = { [Op.iLike]: `%${marque}%` };
+    if (categorie) where.categorie = { [Op.iLike]: `%${categorie}%` };
+    if (statut) where.statut = statut;
+    if (energie) where.energie = energie;
+    if (transmission) where.transmission = transmission;
+    if (succursaleidsuccursale) where.succursaleidsuccursale = succursaleidsuccursale;
+
+    if (kilometrageMin)
+      where.kilometrage = { ...(where.kilometrage || {}), [Op.gte]: Number(kilometrageMin) };
+    if (kilometrageMax)
+      where.kilometrage = { ...(where.kilometrage || {}), [Op.lte]: Number(kilometrageMax) };
+
+    if (tarifjournalierMin)
+      where.tarifjournalier = { ...(where.tarifjournalier || {}), [Op.gte]: Number(tarifjournalierMin) };
+    if (tarifjournalierMax)
+      where.tarifjournalier = { ...(where.tarifjournalier || {}), [Op.lte]: Number(tarifjournalierMax) };
+
+    if (siegesMin)
+      where.sieges = { ...(where.sieges || {}), [Op.gte]: Number(siegesMin) };
+    if (siegesMax)
+      where.sieges = { ...(where.sieges || {}), [Op.lte]: Number(siegesMax) };
+
+    const vehicules = await Vehicule.findAll({
+      where,
+      limit: Number(limit),
+      offset: Number(offset),
+    });
+
     res.json(vehicules);
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
@@ -84,71 +132,3 @@ exports.getVehicules = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
-
-
-// tous les types de filtres
-
-
-
-// GET /api/vehicules?marque=...&categorie=...&statut=...&kilometrageMin=...&kilometrageMax=...&tarifjournalierMin=...&tarifjournalierMax=...&energie=...&transmission=...&siegesMin=...&siegesMax=...&succursaleidsuccursale=...
-exports.getVehicules = async (req, res) => {
-  try {
-    const {
-      marque,
-      categorie,
-      statut,
-      kilometrageMin,
-      kilometrageMax,
-      tarifjournalierMin,
-      tarifjournalierMax,
-      energie,
-      transmission,
-      siegesMin,
-      siegesMax,
-      succursaleidsuccursale
-    } = req.query;
-
-    const where = {};
-
-    if (marque) where.marque = { [Op.iLike]: `%${marque}%` }; // recherche partielle, insensible à la casse
-    if (categorie) where.categorie = { [Op.iLike]: `%${categorie}%` };
-    if (statut) where.statut = statut;
-    if (energie) where.energie = energie;
-    if (transmission) where.transmission = transmission;
-    if (succursaleidsuccursale) where.succursaleidsuccursale = succursaleidsuccursale;
-
-    if (kilometrageMin) where.kilometrage = { [Op.gte]: Number(kilometrageMin) };
-    if (kilometrageMax) {
-      where.kilometrage = {
-        ...(where.kilometrage || {}),
-        [Op.lte]: Number(kilometrageMax)
-      };
-    }
-
-    if (tarifjournalierMin) where.tarifjournalier = { [Op.gte]: Number(tarifjournalierMin) };
-    if (tarifjournalierMax) {
-      where.tarifjournalier = {
-        ...(where.tarifjournalier || {}),
-        [Op.lte]: Number(tarifjournalierMax)
-      };
-    }
-
-    if (siegesMin) where.sieges = { [Op.gte]: Number(siegesMin) };
-    if (siegesMax) {
-      where.sieges = {
-        ...(where.sieges || {}),
-        [Op.lte]: Number(siegesMax)
-      };
-    }
-
-    const vehicules = await Vehicule.findAll({ where });
-    res.json(vehicules);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
-// pagination
-const { limit = 10, offset = 0 } = req.query;
-const vehicules = await Vehicule.findAll({ where, limit: Number(limit), offset: Number(offset) });
-

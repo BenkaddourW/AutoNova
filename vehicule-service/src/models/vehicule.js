@@ -75,3 +75,4 @@ const Vehicule = sequelize.define(
 );
 
 module.exports = Vehicule;
+

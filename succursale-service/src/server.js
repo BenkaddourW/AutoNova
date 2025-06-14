@@ -26,5 +26,6 @@ app.use("/api/succursales", succursaleRoutes);
 
 
 app.listen(PORT, () => {
-  console.log(`Vehicule Service running on http://localhost:${PORT}`);
+  
+   console.log(`Succursale Service running on http://localhost:${PORT}`);
 });
