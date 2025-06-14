@@ -1,9 +1,10 @@
 const Succursale = require("../models/succursale");
 const { Op } = require("sequelize");
+const asyncHandler = require("express-async-handler");
 
-exports.getSuccursales = async (req, res) => {
-  try {
-    // const succursales = await Succursale.findAll();
+// Récupérer toutes les succursales avec des filtres
+exports.getSuccursales = asyncHandler(async (req, res) => {
+   
     const {
       ville,
       province,
@@ -30,59 +31,42 @@ exports.getSuccursales = async (req, res) => {
       offset: Number(offset),
     });
     res.json(succursales);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+});
+// Récupérer une succursale par son ID
+exports.getSuccursaleById = asyncHandler(async (req, res) => {
+  const succursale = await Succursale.findByPk(req.params.id);
+  if (!succursale) {
+    res.status(404);
+    throw new Error("Succursale non trouvée");
   }
-};
 
-exports.getSuccursaleById = async (req, res) => {
-  try {
-    const succursale = await Succursale.findByPk(req.params.id);
-    if (!succursale) {
-      return res.status(404).json({ message: "Succursale non trouvée" });
-    }
-    res.json(succursale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
+  res.json(succursale);
+});
+// Créer une nouvelle succursale
+exports.createSuccursale = asyncHandler(async (req, res) => {
+  const nouvelleSuccursale = await Succursale.create(req.body);
+  res.status(201).json(nouvelleSuccursale);
+});
 
-exports.createSuccursale = async (req, res) => {
-  try {
-    const nouvelleSuccursale = await Succursale.create(req.body);
-    res.status(201).json(nouvelleSuccursale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+ // Mettre à jour les champs de la succursale
+exports.updateSuccursale = asyncHandler(async (req, res) => {
+  const succursale = await Succursale.findByPk(req.params.id);
+  if (!succursale) {
+    res.status(404);
+    throw new Error("Succursale non trouvée");
   }
-};
+ 
+  await succursale.update(req.body);
+  res.json(succursale);
+});
 
-exports.updateSuccursale = async (req, res) => {
-  try {
-    const succursale = await Succursale.findByPk(req.params.id);
-    if (!succursale) {
-      return res.status(404).json({ message: "Succursale non trouvée" });
-    }
-    await succursale.update(req.body);
-    res.json(succursale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+exports.deleteSuccursale = asyncHandler(async (req, res) => {
+  const succursale = await Succursale.findByPk(req.params.id);
+  if (!succursale) {
+    res.status(404);
+    throw new Error("Succursale non trouvée");
   }
-};
 
-exports.deleteSuccursale = async (req, res) => {
-  try {
-    const succursale = await Succursale.findByPk(req.params.id);
-    if (!succursale) {
-      return res.status(404).json({ message: "Succursale non trouvée" });
-    }
-    await succursale.destroy();
-    res.status(204).end();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
+  await succursale.destroy();
+  res.status(204).end();
+});

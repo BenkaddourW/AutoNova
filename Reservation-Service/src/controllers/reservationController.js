@@ -3,6 +3,7 @@ const Client = require("../models/client");
 const Vehicule = require("../models/vehicule");
 const Paiement = require("../models/paiement");
 const Succursale = require("../models/succursale");
+const asyncHandler = require("express-async-handler");
 
 
 
@@ -26,72 +27,60 @@ async function verifyForeignKeys(body) {
 
   return { ok: true };
 }
+// afficher toutes les réservations
+exports.getReservations = asyncHandler(async (req, res) => {
+  const reservations = await Reservation.findAll();
+  res.json(reservations);
+});
 
-exports.getReservations = async (req, res) => {
-  try {
-    const reservations = await Reservation.findAll();
-    res.json(reservations);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+// afficher une réservation par ID
+exports.getReservationById = asyncHandler(async (req, res) => {
+  const reservation = await Reservation.findByPk(req.params.id);
+  if (!reservation) {
+    res.status(404);
+    throw new Error("Réservation non trouvée");
   }
-};
 
-exports.getReservationById = async (req, res) => {
-  try {
-    const reservation = await Reservation.findByPk(req.params.id);
-    if (!reservation) {
-      return res.status(404).json({ message: "Réservation non trouvée" });
-    }
-    res.json(reservation);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
+  res.json(reservation);
+});
 
-exports.createReservation = async (req, res) => {
-  try {
-    const check = await verifyForeignKeys(req.body);
-    if (!check.ok) {
-      return res.status(400).json({ message: check.message });
-    }
-    const newReservation = await Reservation.create(req.body);
-    res.status(201).json(newReservation);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+// créer une nouvelle réservation
+exports.createReservation = asyncHandler(async (req, res) => {
+  const check = await verifyForeignKeys(req.body);
+  if (!check.ok) {
+    res.status(400);
+    throw new Error(check.message);
   }
-};
+  // Vérification des données requises
+  const newReservation = await Reservation.create(req.body);
+  res.status(201).json(newReservation);
+});
 
-exports.updateReservation = async (req, res) => {
-  try {
-    const reservation = await Reservation.findByPk(req.params.id);
-    if (!reservation) {
-      return res.status(404).json({ message: "Réservation non trouvée" });
-    }
-    const check = await verifyForeignKeys({ ...reservation.dataValues, ...req.body });
-    if (!check.ok) {
-      return res.status(400).json({ message: check.message });
-    }
-    await reservation.update(req.body);
-    res.json(reservation);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+// mettre à jour une réservation
+exports.updateReservation = asyncHandler(async (req, res) => {
+  const reservation = await Reservation.findByPk(req.params.id);
+  if (!reservation) {
+    res.status(404);
+    throw new Error("Réservation non trouvée");
   }
-};
+  const check = await verifyForeignKeys({ ...reservation.dataValues, ...req.body });
+  if (!check.ok) {
+    res.status(400);
+    throw new Error(check.message);
+  }
 
-exports.deleteReservation = async (req, res) => {
-  try {
-    const reservation = await Reservation.findByPk(req.params.id);
-    if (!reservation) {
-      return res.status(404).json({ message: "Réservation non trouvée" });
-    }
-    await reservation.destroy();
-    res.status(204).end();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  await reservation.update(req.body);
+  res.json(reservation);
+});
+
+// supprimer une réservation
+exports.deleteReservation = asyncHandler(async (req, res) => {
+  const reservation = await Reservation.findByPk(req.params.id);
+  if (!reservation) {
+    res.status(404);
+    throw new Error("Réservation non trouvée");
   }
-};
+
+  await reservation.destroy();
+  res.status(204).end();
+});

@@ -1,11 +1,10 @@
 const Vehicule = require("../models/vehicule");
 const { Op } = require("sequelize");
-
+const asyncHandler = require("express-async-handler");
 
 // Obtenir tous les vehicules avec filtres optionnels et pagination
-exports.getVehicules = async (req, res) => {
-  try {
-    // const vehicules = await Vehicule.findAll();
+
+    exports.getVehicules = asyncHandler(async (req, res) => {
     const {
       marque,
       categorie,
@@ -54,81 +53,48 @@ exports.getVehicules = async (req, res) => {
     });
 
     res.json(vehicules);
-  } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
+});
 
 // Obtenir un vehicule par ID
-exports.getVehiculeById = async (req, res) => {
-  try {
-    const vehicule = await Vehicule.findByPk(req.params.id);
-    if (!vehicule) {
-      return res.status(404).json({ message: "Vehicule non trouve" });
-    }
-    res.json(vehicule);
-  } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+
+
+exports.getVehiculeById = asyncHandler(async (req, res) => {
+  const vehicule = await Vehicule.findByPk(req.params.id);
+  if (!vehicule) {
+    res.status(404);
+    throw new Error("Vehicule non trouve");
   }
-};
+
+  res.json(vehicule);
+});
 
 // Creer un vehicule
-exports.createVehicule = async (req, res) => {
-  try {
-    const nouveauVehicule = await Vehicule.create(req.body);
-    res.status(201).json(nouveauVehicule);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
+exports.createVehicule = asyncHandler(async (req, res) => {
+  const nouveauVehicule = await Vehicule.create(req.body);
+  res.status(201).json(nouveauVehicule);
+});
 
 // Mettre a jour un vehicule
-exports.updateVehicule = async (req, res) => {
-  try {
-    const vehicule = await Vehicule.findByPk(req.params.id);
-    if (!vehicule) {
-      return res.status(404).json({ message: "Vehicule non trouve" });
-    }
-    await vehicule.update(req.body);
-    res.json(vehicule);
-  } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+exports.updateVehicule = asyncHandler(async (req, res) => {
+  const vehicule = await Vehicule.findByPk(req.params.id);
+  if (!vehicule) {
+    res.status(404);
+    throw new Error("Vehicule non trouve");
   }
-};
+
+  await vehicule.update(req.body);
+  res.json(vehicule);
+});
 
 // Supprimer un vehicule
-exports.deleteVehicule = async (req, res) => {
-  try {
-    const vehicule = await Vehicule.findByPk(req.params.id);
-    if (!vehicule) {
-      return res.status(404).json({ message: "Vehicule non trouve" });
-    }
-    await vehicule.destroy();
-    res.status(204).end();
-  } catch (error) {
-    console.error(error); 
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-
+exports.deleteVehicule = asyncHandler(async (req, res) => {
+  const vehicule = await Vehicule.findByPk(req.params.id);
+  if (!vehicule) {
+    res.status(404);
+    throw new Error("Vehicule non trouve");
   }
-};
 
-// filtre par marque, catégorie, statut
-exports.getVehicules = async (req, res) => {
-  try {
-    // Récupère les paramètres de filtre de la requête
-    const { marque, categorie, statut } = req.query;
+  await vehicule.destroy();
+  res.status(204).end();
+});
 
-    // Construis la condition WHERE dynamiquement
-    const where = {};
-    if (marque) where.marque = marque;
-    if (categorie) where.categorie = categorie;
-    if (statut) where.statut = statut;
-
-    const vehicules = await Vehicule.findAll({ where });
-    res.json(vehicules);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
