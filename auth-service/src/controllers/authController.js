@@ -1,4 +1,6 @@
-const { Utilisateur, Client, Employe } = require("../config/database");
+const Utilisateur = require("../models/utilisateur");
+const Client = require("../models/client");
+const Employe = require("../models/employe");
 const Role = require("../models/role");
 const UtilisateurRole = require("../models/utilisateur_role");
 const bcrypt = require("bcrypt");

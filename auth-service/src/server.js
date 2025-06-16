@@ -16,17 +16,17 @@ app.use(cors());
 app.use(helmet());
 
 // Routes
-app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
 
 // Enregistrement auprès de Consul
-const consul = new Consul();
+const consul = new Consul({ host: "localhost", port: 8500 });
 const serviceId = "auth-service-" + process.pid;
 
 consul.agent.service.register(
   {
     id: serviceId,
     name: "auth-service",
-    address: "localhost", // adapte si besoin (ex: IP du conteneur)
+    address: "localhost", // adapter si besoin (ex: IP du conteneur)
     port: Number(PORT),
   },
   (err) => {
