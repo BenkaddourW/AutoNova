@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
 const Utilisateur = sequelize.define(
-  "Utilisateur",
+  "utilisateur",
   {
     idutilisateur: {
       type: DataTypes.INTEGER,
@@ -28,7 +28,7 @@ const Utilisateur = sequelize.define(
     },
     adresse1: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     adresse2: {
       type: DataTypes.STRING,
@@ -36,23 +36,23 @@ const Utilisateur = sequelize.define(
     },
     ville: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     codepostal: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     province: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     pays: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     numerotelephone: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     numeromobile: {
       type: DataTypes.STRING,
