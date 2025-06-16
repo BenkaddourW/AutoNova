@@ -243,3 +243,24 @@ exports.refreshToken = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
 };
+
+// Déconnexion utilisateur
+exports.logout = async (req, res) => {
+  try {
+    const { idutilisateur } = req.user; // suppose un middleware d'authentification
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token requis." });
+    }
+
+    // Supprimer le refresh token de la base
+    await TokenSession.destroy({
+      where: { idutilisateur, token: refreshToken, type: "refresh" },
+    });
+
+    res.json({ message: "Déconnexion réussie." });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur.", error: error.message });
+  }
+};
