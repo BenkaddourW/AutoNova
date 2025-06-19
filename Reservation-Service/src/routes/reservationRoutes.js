@@ -10,5 +10,7 @@ router.get("/:id", reservationController.getReservationById);
 router.post("/", reservationController.createReservation);
 router.put("/:id", reservationController.updateReservation);
 router.delete("/:id", reservationController.deleteReservation);
+// Vérifier la disponibilité d'une liste de véhicules
+router.post("/disponibilites", reservationController.getDisponibilites);
 
 module.exports = router;

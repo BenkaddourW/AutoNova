@@ -10,6 +10,7 @@ const {
   verifyToken,
 } = require("../utils/jwtUtils");
 const TokenSession = require("../models/token_session");
+const jwt = require("jsonwebtoken");
 
 // Inscription de base
 exports.register = async (req, res) => {
@@ -224,7 +225,6 @@ exports.refreshToken = async (req, res) => {
     let payload;
     try {
       payload = verifyToken(refreshToken);
-      
     } catch (err) {
       return res
         .status(401)
@@ -246,22 +246,85 @@ exports.refreshToken = async (req, res) => {
 };
 
 // Déconnexion utilisateur
+
 exports.logout = async (req, res) => {
   try {
-    const { idutilisateur } = req.user; // suppose un middleware d'authentification
     const { refreshToken } = req.body;
-
     if (!refreshToken) {
       return res.status(400).json({ message: "Refresh token requis." });
     }
 
-    // Supprimer le refresh token de la base
-    await TokenSession.destroy({
-      where: { idutilisateur, token: refreshToken, type: "refresh" },
+    // Décoder le refreshToken pour obtenir l'idutilisateur
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: "Refresh token invalide." });
+    }
+
+    const idutilisateur = decoded.idutilisateur;
+
+    // Suppression du refreshToken pour cet utilisateur
+    const result = await TokenSession.destroy({
+      where: { token: refreshToken, idutilisateur: idutilisateur },
     });
 
-    res.json({ message: "Déconnexion réussie." });
-  } catch (error) {
-    res.status(500).json({ message: "Erreur serveur.", error: error.message });
+    if (result === 0) {
+      return res
+        .status(404)
+        .json({ message: "Token non trouvé pour cet utilisateur." });
+    }
+
+    res.status(200).json({ message: "Déconnexion réussie." });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la déconnexion." });
+  }
+};
+
+// Récupérer un utilisateur par son id
+exports.getUtilisateurById = async (req, res) => {
+  try {
+    const { idutilisateur } = req.params;
+    const utilisateur = await Utilisateur.findByPk(idutilisateur);
+    if (!utilisateur) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+    }
+    res.json(utilisateur);
+  } catch (err) {
+    res.status(400).json({
+      message: "Erreur lors de la récupération de l'utilisateur.",
+      error: err.message,
+    });
+  }
+};
+
+exports.updateUtilisateur = async (req, res) => {
+  try {
+    const { idutilisateur } = req.params;
+    const user = req.user; // injecté par le middleware JWT
+
+    const utilisateur = await Utilisateur.findByPk(idutilisateur);
+    if (!utilisateur) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+    }
+
+    // Un client ne peut mettre à jour que son propre profil
+    if (
+      user.role === "client" &&
+      user.idutilisateur !== Number(idutilisateur)
+    ) {
+      return res.status(403).json({ message: "Accès interdit." });
+    }
+
+    // Employé ou admin : peut mettre à jour n'importe quel utilisateur
+    await Utilisateur.update(req.body, { where: { idutilisateur } });
+    const updatedUtilisateur = await Utilisateur.findByPk(idutilisateur);
+
+    res.json(updatedUtilisateur);
+  } catch (err) {
+    res.status(400).json({
+      message: "Erreur lors de la mise à jour de l'utilisateur.",
+      error: err.message,
+    });
   }
 };
