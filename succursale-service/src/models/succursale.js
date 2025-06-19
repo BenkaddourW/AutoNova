@@ -13,39 +13,50 @@ const Succursale = sequelize.define(
     codeagence: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true
+      unique: true,
+validate: { len: [1, 20] }
     },
     nomsuccursale: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 50] }
     },
     adresse1: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 100] }
+
     },
     adresse2: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true,
+      validate: { len: [1, 100] }
     },
     ville: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 50] }
     },
     codepostal: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 10] }
     },
     province: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 50] }
     },
     pays: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 50] }
+
     },
     telephone: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      validate: { len: [1, 20] }
     }
   },
   {
