@@ -32,5 +32,7 @@ router.put(
 );
 
 router.delete("/:id", reservationController.deleteReservation);
+// Vérifier la disponibilité d'une liste de véhicules
+router.post("/disponibilites", reservationController.getDisponibilites);
 
 module.exports = router;

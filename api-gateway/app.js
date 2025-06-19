@@ -6,6 +6,7 @@ const Consul = require("consul");
 const jwt = require("jsonwebtoken");
 const http = require("http");
 const cors = require("cors");
+const authenticateJWT = require("./middlewares/authMiddleware");
 dotenv.config();
 const app = express();
 
@@ -13,32 +14,14 @@ const PORT = process.env.PORT || 3000;
 
 const consul = new Consul({ host: "localhost", port: 8500 });
 
-// Middlewares
 //app.use(express.json());
 app.use(cors());
 app.use(helmet());
-
-// ...le reste du code inchangé...
-
-// Middleware d'authentification JWT pour les routes sensibles
-function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      next();
-    } catch (err) {
-      return res.status(401).json({ message: "Token invalide ou expiré." });
-    }
-  } else {
-    return res.status(401).json({ message: "Token d'accès requis." });
-  }
-}
-
-// Exemple : protéger la route /auth/profile
 app.use("/auth/profile", authenticateJWT);
+
+// Protection de la route /auth/profile
+app.use("/auth/profile", authenticateJWT);
+app.use("/clients", authenticateJWT);
 
 // Fonction pour obtenir l'URL d'un service depuis Consul
 function getServiceUrl(serviceName, cb) {
@@ -75,17 +58,10 @@ function getServiceUrl(serviceName, cb) {
       cb(err);
     });
 }
-//Proxy pour le microservice auth-service
-// app.use("/auth", (req, res, next) => {
-//   getServiceUrl("auth-service", (err, url) => {
-//     if (err) return res.status(502).send("Service auth-service indisponible");
-//     createProxyMiddleware({
-//       target: url,
-//       changeOrigin: true,
-//       pathRewrite: { "^/auth": "/api/auth" },
-//     })(req, res, next);
-//   });
-// });
+
+// Route pour le service d'authentification
+// Cette route va intercepter les requêtes vers /auth et les rediriger vers le service d'authentification
+// en utilisant le proxy middleware de http-proxy-middleware
 
 app.use("/auth", (req, res, next) => {
   console.log("Requête reçue:", req.method, req.url);
@@ -124,10 +100,21 @@ app.use("/auth", (req, res, next) => {
   });
 });
 
-//test route pour vérifier que l'API Gateway fonctionne
-// app.get("/auth", (req, res) => {
-//   res.send("API Gateway fonctionne !");
-// });
+// Route pour le service client
+app.use("/clients", (req, res, next) => {
+  getServiceUrl("client-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service client-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/clients" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`API Gateway démarrée sur le port ${PORT}`);
