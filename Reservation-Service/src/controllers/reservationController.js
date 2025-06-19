@@ -6,7 +6,6 @@ const Succursale = require("../models/succursale");
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
 
-
 async function verifyForeignKeys(body) {
   const {
     idclient,
@@ -137,17 +136,16 @@ exports.getDisponibilites = async (req, res) => {
     });
   }
 };
-=======
 // === FONCTIONS POUR LE DASHBOARD ===
 
 // RÉCUPÉRER LES 5 DERNIÈRES RÉSERVATIONS
 exports.getRecentReservations = asyncHandler(async (req, res) => {
   const recentReservations = await Reservation.findAll({
-    order: [['datereservation', 'DESC']],
+    order: [["datereservation", "DESC"]],
     limit: 5,
     include: [
-      { model: Client, attributes: ['nom', 'prenom'] },
-      { model: Vehicule, attributes: ['marque', 'modele'] },
+      { model: Client, attributes: ["nom", "prenom"] },
+      { model: Vehicule, attributes: ["marque", "modele"] },
     ],
   });
   res.json(recentReservations);
@@ -160,7 +158,7 @@ exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
     where: {
       // Statut indiquant une location en cours ou confirmée
       statut: {
-        [Op.in]: ['Confirmée', 'Active'], 
+        [Op.in]: ["Confirmée", "Active"],
       },
       // La date de début est aujourd'hui ou dans le passé
       daterdv: {
@@ -170,7 +168,7 @@ exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
       dateretour: {
         [Op.gte]: today,
       },
-    }
+    },
   });
   res.json({ count });
 });
@@ -181,20 +179,33 @@ exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
   const results = await Reservation.findAll({
     attributes: [
-      [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation')), 'month'],
-      [Sequelize.fn('COUNT', '*'), 'count']
+      [
+        Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+        "month",
+      ],
+      [Sequelize.fn("COUNT", "*"), "count"],
     ],
     where: {
-      datereservation: { [Op.gte]: twelveMonthsAgo }
+      datereservation: { [Op.gte]: twelveMonthsAgo },
     },
-    group: [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation'))],
-    order: [[Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation')), 'ASC']],
+    group: [
+      Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+    ],
+    order: [
+      [
+        Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+        "ASC",
+      ],
+    ],
     raw: true,
   });
-  const labels = results.map(row => 
-    new Date(row.month).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+  const labels = results.map((row) =>
+    new Date(row.month).toLocaleDateString("fr-FR", {
+      month: "short",
+      year: "2-digit",
+    })
   );
-  const data = results.map(row => parseInt(row.count, 10));
+  const data = results.map((row) => parseInt(row.count, 10));
   res.json({ labels, data });
 });
 
@@ -202,10 +213,10 @@ exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
 exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
   const stats = await Reservation.findAll({
     attributes: [
-      'idsuccursalelivraison', 
-      [Sequelize.fn('COUNT', 'idreservation'), 'reservationCount']
+      "idsuccursalelivraison",
+      [Sequelize.fn("COUNT", "idreservation"), "reservationCount"],
     ],
-    group: ['idsuccursalelivraison'],
+    group: ["idsuccursalelivraison"],
   });
   res.json(stats);
 });
