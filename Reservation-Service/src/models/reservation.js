@@ -12,35 +12,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
-      // ... autres champs ...
-    },
-    {
-      tableName: "reservation",
-      timestamps: false,
-    }
-  );
-
-  // Hook pour générer automatiquement le numéro de réservation
-  Reservation.beforeCreate(async (reservation, options) => {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    reservation.numeroreservation = `RES${Date.now()}${random}`;
-  });
-const Reservation = sequelize.define(
-  "Reservation",
-  {
-    idreservation: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      allowNull: false,
-      autoIncrement: true,
-    },
-    numeroreservation: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      validate: { len: [1, 30] }
-    },
-    datereservation: {
+      datereservation: {
       type: DataTypes.DATE,
       allowNull: false,
     },
@@ -103,6 +75,14 @@ const Reservation = sequelize.define(
     timestamps: false,
   }
 );
+
+  // Hook pour générer automatiquement le numéro de réservation
+  Reservation.beforeCreate(async (reservation, options) => {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    reservation.numeroreservation = `RES${Date.now()}${random}`;
+  });
+
+    
 
   return Reservation;
 };
