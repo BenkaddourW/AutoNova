@@ -120,17 +120,7 @@ const SuccursalesPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Voulez-vous vraiment supprimer cette succursale ?')) {
-      try {
-        await succursaleService.deleteSuccursale(id);
-        showNotification('success', 'Succursale supprimée');
-        setSuccursales(prev => prev.filter(s => s.idsuccursale !== id));
-      } catch (err) {
-        showNotification('error', err.message);
-      }
-    }
-  };
+  
   
   // --- PRÉPARATION DES DONNÉES POUR LE GRAPHIQUE (CORRIGÉ) ---
   const vehiculesBySuccursaleChartData = useMemo(() => {
@@ -212,7 +202,7 @@ const SuccursalesPage = () => {
           <SuccursalesTable
             succursales={succursales}
             onEdit={handleOpenEditModal}
-            onDelete={handleDelete}
+           
           />
         )}
       </div>

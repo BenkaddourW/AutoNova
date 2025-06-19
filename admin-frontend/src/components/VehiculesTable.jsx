@@ -58,12 +58,12 @@ const VehiculesTable = ({ vehicules, onEdit, onDelete }) => (
                 <td className="px-6 py-4 font-mono">{v.immatriculation}</td>
                 <td className="px-6 py-4">{v.categorie}</td>
                 <td className="px-6 py-4 text-center font-mono">{v.succursaleidsuccursale}</td>
-                <td className="px-6 py-4 text-right font-mono">{parseFloat(v.tarifjournalier).toFixed(2)} €</td>
+                <td className="px-6 py-4 text-right font-mono">{parseFloat(v.tarifjournalier).toFixed(2)} $</td>
                 <td className="px-6 py-4 text-center"><StatutBadge statut={v.statut} /></td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex justify-center gap-2">
                     <button onClick={() => onEdit(v)} className="p-1 text-sky-600 hover:text-sky-800" title="Modifier"><Edit size={16} /></button>
-                    <button onClick={() => onDelete(v.idvehicule)} className="p-1 text-red-600 hover:text-red-800" title="Supprimer"><Trash2 size={16} /></button>
+                    {/* <button onClick={() => onDelete(v.idvehicule)} className="p-1 text-red-600 hover:text-red-800" title="Supprimer"><Trash2 size={16} /></button> */}
                   </div>
                 </td>
               </tr>

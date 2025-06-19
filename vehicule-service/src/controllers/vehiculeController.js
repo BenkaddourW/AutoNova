@@ -103,19 +103,7 @@ exports.updateVehicule = asyncHandler(async (req, res) => {
     }
 });
 
-exports.deleteVehicule = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const vehicule = await Vehicule.findByPk(id);
-  if (!vehicule) {
-    res.status(404);
-    throw new Error("Véhicule non trouvé");
-  }
-  // La suppression en cascade devrait être gérée par la base de données si configuré.
-  // Sinon, il est plus sûr de supprimer les images d'abord.
-  await VehiculeImage.destroy({ where: { idvehicule: id } });
-    await vehicule.destroy();
-  res.status(204).end();
-});
+
 
 
 // --- Fonctions de Statistiques (inchangées) ---

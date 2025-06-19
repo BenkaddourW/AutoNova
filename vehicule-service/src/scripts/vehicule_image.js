@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const sequelize = require('../src/config/database');
-const VehiculeImage = require('../src/models/vehicule_image');
+const sequelize = require('../config/database');
+const VehiculeImage = require('../models/vehicule_image');
 
 async function importImages() {
   const supabaseUrl = process.env.SUPABASE_URL;

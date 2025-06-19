@@ -59,7 +59,14 @@ export const updateSuccursale = async (id, data) => {
   return result;
 };
 
-export const deleteSuccursale = async (id) => {
-  const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Erreur de suppression de la succursale.');
+// Récupère la liste des succursales pour les sélecteurs
+export const getSuccursalesList = async () => {
+  try {
+    const response = await fetch(API_URL); // Utilise la même URL que getSuccursales
+    if (!response.ok) throw new Error('Erreur de récupération de la liste des succursales.');
+    return response.json();
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la liste des succursales", error);
+    throw error;
+  }
 };

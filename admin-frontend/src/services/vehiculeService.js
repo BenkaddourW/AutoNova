@@ -19,20 +19,7 @@ export const getVehicules = (params = new URLSearchParams()) => {
 export const getVehiculeById = (id) => {
   return fetch(`${API_URL}/${id}`).then(handleResponse);
 };
-// export const createVehicule = (data) => {
-//   return fetch(API_URL, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify(data),
-//   }).then(handleResponse);
-// };
-// export const updateVehicule = (id, data) => {
-//   return fetch(`${API_URL}/${id}`, {
-//     method: 'PUT',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify(data),
-//   }).then(handleResponse);
-// };
+
 export const createVehicule = async (vehiculeData) => {
   const response = await fetch(API_URL, {
     method: 'POST',
@@ -64,9 +51,7 @@ export const updateVehicule = async (id, vehiculeData) => {
   }
   return result;
 };
-export const deleteVehicule = (id) => {
-  return fetch(`${API_URL}/${id}`, { method: 'DELETE' }).then(handleResponse);
-};
+
 export const getVehiculeGeneralStats = () => {
   return fetch(`${API_URL}/stats/general`).then(handleResponse);
 };

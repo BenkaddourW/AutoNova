@@ -33,6 +33,6 @@ router.put(
   vehiculeController.updateVehicule
 );
 
-router.delete("/:id", vehiculeController.deleteVehicule);
+
 
 module.exports = router;

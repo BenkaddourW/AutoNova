@@ -23,7 +23,6 @@ const SuccursalesTable = ({ succursales, onEdit, onDelete }) => (
             <td className="px-6 py-4">{s.telephone}</td>
             <td className="px-6 py-4 text-center flex justify-center gap-2">
               <button onClick={() => onEdit(s)} className="p-1 text-sky-600 hover:text-sky-800"><Edit size={16} /></button>
-              {/* <button onClick={() => onDelete(s.idsuccursale)} className="p-1 text-red-600 hover:text-red-800"><Trash2 size={16} /></button> */}
             </td>
           </tr>
         ))}

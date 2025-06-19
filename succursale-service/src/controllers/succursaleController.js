@@ -67,16 +67,6 @@ exports.updateSuccursale = asyncHandler(async (req, res) => {
   res.json(succursale);
 });
 
-exports.deleteSuccursale = asyncHandler(async (req, res) => {
-  const succursale = await Succursale.findByPk(req.params.id);
-  if (!succursale) {
-    res.status(404);
-    throw new Error("Succursale non trouvée");
-  }
-
-  await succursale.destroy();
-  res.status(204).end();
-});
 
 // Récupérer le nombre total de succursales
 exports.getSuccursaleCount = asyncHandler(async (req, res) => {
@@ -90,3 +80,18 @@ exports.getNextCode = asyncHandler(async (req, res) => {
   const codeagence = `AG-${String(maxId + 1).padStart(3, '0')}`;
   res.json({ codeagence });
 });
+
+
+exports.getAllSuccursalesList = async (req, res) => {
+  try {
+    const succursales = await Succursale.findAll({
+      // On sélectionne seulement les colonnes dont le frontend a besoin
+      attributes: ['idsuccursale', 'nomsuccursale'], 
+      order: [['nomsuccursale', 'ASC']] // On trie par ordre alphabétique
+    });
+    res.status(200).json(succursales);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la liste des succursales :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};

@@ -154,17 +154,7 @@ const VehiculesPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Voulez-vous vraiment supprimer ce véhicule ?')) {
-      try {
-        await vehiculeService.deleteVehicule(id);
-        showNotification('success', 'Véhicule supprimé.');
-        await loadPageData();
-      } catch (err) {
-        showNotification('error', err.message);
-      }
-    }
-  };
+  
 
   const handleOpenAddModal = () => { setCurrentVehicule(null); setIsModalOpen(true); };
   const handleOpenEditModal = (vehicule) => { setCurrentVehicule(vehicule); setIsModalOpen(true); };
@@ -227,7 +217,7 @@ const VehiculesPage = () => {
           <VehiculesTable
             vehicules={vehicules}
             onEdit={handleOpenEditModal}
-            onDelete={handleDelete}
+           
           />
         )}
       </div>

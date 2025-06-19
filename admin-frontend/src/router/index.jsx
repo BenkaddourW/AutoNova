@@ -5,6 +5,10 @@ import DashboardPage from '../pages/DashboardPage';
 // ↓↓↓↓ CETTE LIGNE EST MANQUANTE DANS VOTRE FICHIER ACTUEL ↓↓↓↓
 import VehiculesPage from '../pages/VehiculesPage';
 import SuccursalesPage from '../pages/SuccursalesPage'; 
+import TaxesPage from '../pages/TaxesPage';
+import InspectionVehiculePage from '../pages/InspectionVehiculePage';
+import ContratInspectionPage from '../pages/ContratInspectionPage'; 
+
 
 const router = createBrowserRouter([
   {
@@ -12,20 +16,16 @@ const router = createBrowserRouter([
     element: <DashboardLayout />,
     children: [
       {
-        index: true, // Route par défaut
-        element: <DashboardPage />,
+        index: true, element: <DashboardPage />,
       },
-      // ... autres routes si vous en avez
+     
       
-      { 
-        path: 'vehicules', 
-        // Ligne 21 : Ici, le routeur a besoin de savoir ce qu'est "VehiculesPage"
-        element: <VehiculesPage /> 
-      },
-      
-      // Les autres routes restent inchangées pour le moment
+      {  path: 'vehicules', element: <VehiculesPage /> },
       { path: 'reservations', element: <div>Page Réservations</div> },
+      {path: 'inspections',element: <InspectionVehiculePage /> },
+      { path: 'contrats/:idcontrat/inspection', element: <ContratInspectionPage /> },
       { path: 'succursales', element: <SuccursalesPage /> },
+      { path: 'taxes', element: <TaxesPage /> },
       { path: 'utilisateurs', element: <div>Page Utilisateurs (Admin)</div> },
     ],
   },

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 // On importe une icône plus stylisée pour le logo, comme 'CarFront'
-import { LayoutDashboard, Car, CalendarCheck, Building, Users, CarFront } from 'lucide-react';
+import { LayoutDashboard, Car, CalendarCheck, Building, Users, CarFront,ListChecks } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const Sidebar = () => {
@@ -10,7 +10,9 @@ const Sidebar = () => {
     { to: '/', text: 'Dashboard', icon: LayoutDashboard, role: ['Admin', 'Agent'] },
     { to: '/vehicules', text: 'Véhicules', icon: Car, role: ['Admin', 'Agent'] },
     { to: '/reservations', text: 'Réservations', icon: CalendarCheck, role: ['Admin', 'Agent'] },
+    { to: '/inspections', text: 'Inspections', icon: ListChecks, role: ['Admin', 'Agent'] },
     { to: '/succursales', text: 'Succursales', icon: Building, role: ['Admin', 'Agent'] },
+    { to: '/taxes', text: 'Taxes', icon: Building, role: ['Admin'] },
     { to: '/utilisateurs', text: 'Utilisateurs', icon: Users, role: ['Admin'] },
   ];
 
