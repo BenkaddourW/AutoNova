@@ -137,7 +137,7 @@ exports.getDisponibilites = async (req, res) => {
     });
   }
 };
-=======
+
 // === FONCTIONS POUR LE DASHBOARD ===
 
 // RÉCUPÉRER LES 5 DERNIÈRES RÉSERVATIONS
