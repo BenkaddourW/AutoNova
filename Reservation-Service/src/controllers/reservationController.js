@@ -1,39 +1,28 @@
-const Reservation = require("../models/reservation");
-const Client = require("../models/client");
-const Vehicule = require("../models/vehicule");
-const Paiement = require("../models/paiement");
-const Succursale = require("../models/succursale");
+// CHANGEMENT 1: Importation des modèles depuis l'index centralisé
+// On importe tous les modèles nécessaires depuis le fichier d'index du dossier 'models'
+// Cela résout l'erreur "Reservation.findAll is not a function"
+const {
+  Reservation,
+  Client,
+  Vehicule,
+  Paiement,
+  Succursale,
+} = require("../models");
+
+// Les anciennes importations individuelles sont supprimées :
+// const Reservation = require("../models/reservation");
+// const Client = require("../models/client");
+// etc...
+
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
 
-
+// CHANGEMENT 2: La fonction verifyForeignKeys a été supprimée, comme demandé.
+/*
 async function verifyForeignKeys(body) {
-  const {
-    idclient,
-    idvehicule,
-    idpaiement,
-    idsuccursalelivraison,
-    idsuccursaleretour,
-  } = body;
-
-  const client = await Client.findByPk(idclient);
-  if (!client) return { ok: false, message: "Client non trouvé" };
-
-  const vehicule = await Vehicule.findByPk(idvehicule);
-  if (!vehicule) return { ok: false, message: "Véhicule non trouvé" };
-
-  const paiement = await Paiement.findByPk(idpaiement);
-  if (!paiement) return { ok: false, message: "Paiement non trouvé" };
-
-  const succLiv = await Succursale.findByPk(idsuccursalelivraison);
-  if (!succLiv)
-    return { ok: false, message: "Succursale livraison non trouvée" };
-
-  const succRet = await Succursale.findByPk(idsuccursaleretour);
-  if (!succRet) return { ok: false, message: "Succursale retour non trouvée" };
-
-  return { ok: true };
+  // ... contenu de la fonction supprimé
 }
+*/
 
 // AFFICHER TOUTES LES RÉSERVATIONS
 exports.getReservations = asyncHandler(async (req, res) => {
@@ -53,11 +42,14 @@ exports.getReservationById = asyncHandler(async (req, res) => {
 
 // CRÉER UNE NOUVELLE RÉSERVATION
 exports.createReservation = asyncHandler(async (req, res) => {
+  // CHANGEMENT 3: L'appel à verifyForeignKeys est supprimé
+  /*
   const check = await verifyForeignKeys(req.body);
   if (!check.ok) {
     res.status(400);
     throw new Error(check.message);
   }
+  */
   const newReservation = await Reservation.create(req.body);
   res.status(201).json(newReservation);
 });
@@ -69,6 +61,8 @@ exports.updateReservation = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Réservation non trouvée");
   }
+  // CHANGEMENT 4: L'appel à verifyForeignKeys est supprimé
+  /*
   const check = await verifyForeignKeys({
     ...reservation.dataValues,
     ...req.body,
@@ -77,6 +71,7 @@ exports.updateReservation = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error(check.message);
   }
+  */
   await reservation.update(req.body);
   res.json(reservation);
 });
@@ -102,7 +97,6 @@ exports.getDisponibilites = async (req, res) => {
         .json({ message: "Paramètres manquants ou invalides." });
     }
 
-    // Cherche les réservations qui chevauchent la période pour ces véhicules
     const reservations = await Reservation.findAll({
       where: {
         idvehicule: { [Op.in]: idsvehicules },
@@ -121,10 +115,7 @@ exports.getDisponibilites = async (req, res) => {
       },
     });
 
-    // Liste des véhicules réservés sur la période
     const indisponibles = reservations.map((r) => r.idvehicule);
-
-    // Filtre les véhicules disponibles
     const disponibles = idsvehicules.filter(
       (id) => !indisponibles.includes(id)
     );
@@ -143,11 +134,11 @@ exports.getDisponibilites = async (req, res) => {
 // RÉCUPÉRER LES 5 DERNIÈRES RÉSERVATIONS
 exports.getRecentReservations = asyncHandler(async (req, res) => {
   const recentReservations = await Reservation.findAll({
-    order: [['datereservation', 'DESC']],
+    order: [["datereservation", "DESC"]],
     limit: 5,
     include: [
-      { model: Client, attributes: ['nom', 'prenom'] },
-      { model: Vehicule, attributes: ['marque', 'modele'] },
+      { model: Client, attributes: ["nom", "prenom"] },
+      { model: Vehicule, attributes: ["marque", "modele"] },
     ],
   });
   res.json(recentReservations);
@@ -158,19 +149,10 @@ exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
   const today = new Date();
   const count = await Reservation.count({
     where: {
-      // Statut indiquant une location en cours ou confirmée
-      statut: {
-        [Op.in]: ['Confirmée', 'Active'], 
-      },
-      // La date de début est aujourd'hui ou dans le passé
-      daterdv: {
-        [Op.lte]: today,
-      },
-      // La date de fin est aujourd'hui ou dans le futur
-      dateretour: {
-        [Op.gte]: today,
-      },
-    }
+      statut: { [Op.in]: ["Confirmée", "Active"] },
+      daterdv: { [Op.lte]: today },
+      dateretour: { [Op.gte]: today },
+    },
   });
   res.json({ count });
 });
@@ -181,20 +163,33 @@ exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
   const results = await Reservation.findAll({
     attributes: [
-      [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation')), 'month'],
-      [Sequelize.fn('COUNT', '*'), 'count']
+      [
+        Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+        "month",
+      ],
+      [Sequelize.fn("COUNT", "*"), "count"],
     ],
     where: {
-      datereservation: { [Op.gte]: twelveMonthsAgo }
+      datereservation: { [Op.gte]: twelveMonthsAgo },
     },
-    group: [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation'))],
-    order: [[Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('datereservation')), 'ASC']],
+    group: [
+      Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+    ],
+    order: [
+      [
+        Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("datereservation")),
+        "ASC",
+      ],
+    ],
     raw: true,
   });
-  const labels = results.map(row => 
-    new Date(row.month).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+  const labels = results.map((row) =>
+    new Date(row.month).toLocaleDateString("fr-FR", {
+      month: "short",
+      year: "2-digit",
+    })
   );
-  const data = results.map(row => parseInt(row.count, 10));
+  const data = results.map((row) => parseInt(row.count, 10));
   res.json({ labels, data });
 });
 
@@ -202,10 +197,11 @@ exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
 exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
   const stats = await Reservation.findAll({
     attributes: [
-      'idsuccursalelivraison', 
-      [Sequelize.fn('COUNT', 'idreservation'), 'reservationCount']
+      "idsuccursalelivraison",
+      [Sequelize.fn("COUNT", "idreservation"), "reservationCount"],
     ],
-    group: ['idsuccursalelivraison'],
+    group: ["idsuccursalelivraison"],
+    include: [{ model: Succursale, as: 'succursaleLivraison', attributes: ['nom'] }] // Optionnel: pour avoir le nom de la succursale
   });
   res.json(stats);
 });

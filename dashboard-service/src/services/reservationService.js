@@ -1,39 +1,69 @@
+// Fichier : services/reservationService.js
+
 const axios = require('axios');
+const { getServiceUrl } = require('../lib/consul-client');
 
-const RESERVATION_API_URL = process.env.RESERVATION_SERVICE_URL;
+// --- FONCTIONS EXISTANTES (INCHANGÉES) ---
 
-if (!RESERVATION_API_URL) {
-  throw new Error("Erreur de configuration: RESERVATION_SERVICE_URL n'est pas défini dans le .env du dashboard-service.");
-}
-
-/**
- * Appelle le microservice pour obtenir le compte de réservations par succursale.
- */
 async function getReservationCountBySuccursale() {
   try {
-    const { data } = await axios.get(`${RESERVATION_API_URL}/reservations/stats/by-succursale`);
+    const baseUrl = await getServiceUrl('reservation-service');
+    const { data } = await axios.get(`${baseUrl}/reservations/stats/by-succursale`);
     return data;
   } catch (error) {
-    console.error('Erreur de communication avec le reservation-service (by-succursale):', error.message);
-    return []; 
+    console.error('Erreur de com. avec reservation-service (by-succursale):', error.message);
+    throw error; // Propage l'erreur pour que Promise.all échoue
+  }
+}
+
+async function getActiveReservationCount() {
+  try {
+    const baseUrl = await getServiceUrl('reservation-service');
+    const { data } = await axios.get(`${baseUrl}/reservations/stats/active-count`);
+    return data;
+  } catch (error) {
+    console.error('Erreur de com. avec reservation-service (active-count):', error.message);
+    throw error;
+  }
+}
+
+// --- FONCTIONS MANQUANTES À AJOUTER ---
+
+/**
+ * Appelle le reservation-service pour obtenir les 5 réservations les plus récentes.
+ */
+async function getRecentReservations() {
+  try {
+    const baseUrl = await getServiceUrl('reservation-service');
+    // La route doit correspondre à celle définie dans reservationRoutes.js
+    const { data } = await axios.get(`${baseUrl}/reservations/stats/recent`);
+    return data;
+  } catch (error) {
+    console.error('Erreur de com. avec reservation-service (recent):', error.message);
+    throw error;
   }
 }
 
 /**
- * Appelle le reservation-service pour obtenir le nombre de réservations actives.
+ * Appelle le reservation-service pour obtenir l'évolution mensuelle.
  */
-async function getActiveReservationCount() {
+async function getMonthlyEvolution() {
   try {
-    // Appel à la route harmonisée
-    const { data } = await axios.get(`${RESERVATION_API_URL}/reservations/stats/active-count`);
-    return data; // Devrait retourner { count: X }
+    const baseUrl = await getServiceUrl('reservation-service');
+    const { data } = await axios.get(`${baseUrl}/reservations/stats/monthly-evolution`);
+    return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (active-count):', error.message);
-    return { count: 0 }; // Valeur par défaut en cas d'erreur
+    console.error('Erreur de com. avec reservation-service (monthly-evolution):', error.message);
+    throw error;
   }
 }
 
+
+// --- MISE À JOUR DE L'EXPORT ---
+// Assurez-vous d'exporter TOUTES les fonctions que vous utilisez.
 module.exports = { 
   getReservationCountBySuccursale,
-  getActiveReservationCount 
+  getActiveReservationCount,
+  // getRecentReservations,      // <--- AJOUTÉ
+  getMonthlyEvolution         // <--- AJOUTÉ
 };

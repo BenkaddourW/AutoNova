@@ -18,7 +18,7 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan('dev'));
 
-app.use('/api/taxes', taxeRoutes);
+app.use('/taxes', taxeRoutes);
 app.use(errorHandler);
 
 app.listen(PORT, () => {

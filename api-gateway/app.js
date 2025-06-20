@@ -116,6 +116,69 @@ app.use("/clients", (req, res, next) => {
   });
 });
 
+// Route pour le service de véhicules
+app.use("/vehicules", (req, res, next) => {
+  getServiceUrl("vehicule-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service vehicule-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/vehicules" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+// Route pour le service de succursales
+app.use("/succursales", (req, res, next) => { 
+  getServiceUrl("succursale-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service succursale-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/succursales" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+// Route pour le service de réservations
+app.use("/reservations", (req, res, next) => {
+  getServiceUrl("reservation-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service reservation-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/reservations" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+// Route pour le service de dashboards
+app.use("/dashboards", (req, res, next) => {  
+  getServiceUrl("dashboard-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service dashboard-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/dashboards" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`API Gateway démarrée sur le port ${PORT}`);
 });

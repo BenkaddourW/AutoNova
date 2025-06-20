@@ -1,18 +1,14 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
-
-const Paiement = sequelize.define(
-  "Paiement",
-  {
+module.exports = (sequelize, DataTypes) => {
+  const Paiement = sequelize.define("Paiement", {
     idpaiement: {
       type: DataTypes.INTEGER,
       primaryKey: true,
     },
-  },
-  {
+    // Autres champs ici
+  }, {
     tableName: "paiement",
     timestamps: false,
-  }
-);
+  });
 
-module.exports = Paiement;
+  return Paiement;
+};
