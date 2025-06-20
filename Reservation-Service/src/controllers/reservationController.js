@@ -1,4 +1,6 @@
-const Reservation = require("../models/reservation");
+const sequelize = require("../config/database");
+const { DataTypes } = require("sequelize");
+const Reservation = require("../models/reservation")(sequelize, DataTypes);
 const Client = require("../models/client");
 const Vehicule = require("../models/vehicule");
 const Paiement = require("../models/paiement");
@@ -95,6 +97,7 @@ exports.deleteReservation = asyncHandler(async (req, res) => {
 exports.getDisponibilites = async (req, res) => {
   try {
     const { idsvehicules, datedebut, datefin } = req.body;
+    console.log("BODY RECU:", req.body);
     if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
       return res
         .status(400)
@@ -105,18 +108,8 @@ exports.getDisponibilites = async (req, res) => {
     const reservations = await Reservation.findAll({
       where: {
         idvehicule: { [Op.in]: idsvehicules },
-        [Op.or]: [
-          {
-            daterdv: { [Op.lte]: datefin },
-            dateretour: { [Op.gte]: datedebut },
-          },
-          {
-            daterdv: { [Op.between]: [datedebut, datefin] },
-          },
-          {
-            dateretour: { [Op.between]: [datedebut, datefin] },
-          },
-        ],
+        daterdv: { [Op.lte]: datefin },
+        dateretour: { [Op.gte]: datedebut },
       },
     });
 
@@ -130,6 +123,7 @@ exports.getDisponibilites = async (req, res) => {
 
     res.json({ disponibles });
   } catch (err) {
+    console.error("Erreur Sequelize:", err);
     res.status(400).json({
       message: "Erreur lors de la vérification des disponibilités.",
       error: err.message,

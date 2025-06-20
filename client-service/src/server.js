@@ -1,20 +1,31 @@
 const express = require("express");
-const app = express();
-const PORT = process.env.PORT || 3008;
-const clientRoutes = require("./routes/clientRoutes");
-const jwtMiddleware = require("./middlewares/jwtMiddleware");
-require("dotenv").config();
+const helmet = require("helmet");
+const cors = require("cors");
+const morgan = require("morgan");
 const Consul = require("consul");
-const consul = new Consul({ host: "localhost", port: 8500 });
+const jwtMiddleware = require("./middlewares/jwtMiddleware");
+const clientRoutes = require("./routes/clientRoutes");
 
+const app = express();
+const PORT = process.env.PORT || 3003;
+
+// Middlewares globaux
 app.use(express.json());
-app.use(jwtMiddleware);
-app.use("/", clientRoutes);
+app.use(cors());
+app.use(helmet());
+app.use(morgan("dev"));
 
+// Route de healthcheck (avant le middleware JWT)
 app.get("/health", (req, res) => res.status(200).send("OK"));
 
-// Enregistrement auprès de Consul
+// Middleware JWT pour toutes les autres routes
+app.use(jwtMiddleware);
 
+// Routes du client-service
+app.use("/", clientRoutes);
+
+// Enregistrement auprès de Consul
+const consul = new Consul({ host: "127.0.0.1", port: 8500 });
 const SERVICE_ID = "client-service-" + process.pid;
 
 consul.agent.service.register(
@@ -25,7 +36,7 @@ consul.agent.service.register(
     port: Number(PORT),
     check: {
       http: `http://localhost:${PORT}/health`,
-      interval: "10s",
+      interval: "20s",
     },
   },
   (err) => {
@@ -40,7 +51,7 @@ consul.agent.service.register(
   }
 );
 
-// Dé-enregistrement à l'arrêt du process
+// Désenregistrement à l'arrêt du process
 process.on("SIGINT", () => {
   consul.agent.service.deregister(SERVICE_ID, () => {
     process.exit();

@@ -9,10 +9,16 @@ const {
 } = require("../validators/vehiculeValidator");
 
 // --- Routes pour les statistiques ---
-router.get('/stats/by-marque', vehiculeController.getVehiculeStatsByMarque);
-router.get('/stats/general', vehiculeController.getVehiculeGeneralStats);
-router.get('/stats/by-succursale', vehiculeController.getVehiculeStatsBySuccursale);
-router.get('/filter-options', vehiculeController.getVehiculeFilterOptions);
+router.get("/stats/by-marque", vehiculeController.getVehiculeStatsByMarque);
+router.get("/stats/general", vehiculeController.getVehiculeGeneralStats);
+router.get(
+  "/stats/by-succursale",
+  vehiculeController.getVehiculeStatsBySuccursale
+);
+router.get("/filter-options", vehiculeController.getVehiculeFilterOptions);
+
+// Recherche de véhicules disponibles selon critères
+router.get("/disponibles", vehiculeController.getVehiculesDisponibles);
 
 // --- Routes pour le CRUD ---
 router.get("/", vehiculeController.getVehicules);
@@ -21,18 +27,16 @@ router.get("/:id", vehiculeController.getVehiculeById);
 // Routes avec validation correcte
 router.post(
   "/",
-  createVehiculeRules,  // Utilisez directement createVehiculeRules
+  createVehiculeRules, // Utilisez directement createVehiculeRules
   validate,
   vehiculeController.createVehicule
 );
 
 router.put(
   "/:id",
-  updateVehiculeRules,  // Utilisez directement updateVehiculeRules
+  updateVehiculeRules, // Utilisez directement updateVehiculeRules
   validate,
   vehiculeController.updateVehicule
 );
-
-
 
 module.exports = router;
