@@ -7,13 +7,16 @@ const {
 } = require('../validators/reservationValidator');
 
 const validate = require("../middlewares/validate");
+router.get('/stats/top-succursales', reservationController.getTopSuccursalesByReservation);
 
 // --- Routes pour les statistiques du Dashboard ---
+router.get('/stats/top-vehicles', reservationController.getTopReservedVehicles);
+router.get('/recent', reservationController.getRecentReservations);
 router.get('/stats/by-succursale', reservationController.getReservationCountBySuccursale);
 router.get('/stats/monthly-evolution', reservationController.getMonthlyEvolution);
 router.get('/stats/active-count', reservationController.getActiveReservationsCount); // Route harmonisée
 // On ajoute le préfixe '/stats' pour être cohérent avec les autres routes de stats
-router.get('/stats/recent', reservationController.getRecentReservations);
+
 // --- Routes CRUD classiques ---
 router.get("/", reservationController.getReservations);
 router.get("/:id", reservationController.getReservationById);

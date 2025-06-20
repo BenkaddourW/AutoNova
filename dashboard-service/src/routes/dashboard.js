@@ -8,13 +8,19 @@ const { getVehiculeStats } = require('../services/vehiculeService');
 
 // Pour le nombre total de succursales (StatCard)
 const { getSuccursaleCount } = require('../services/succursaleService');
+const {
+  getVehiculeStatsBySuccursaleWithNames
+} = require('../services/vehiculeService'); // <- ajoute ici
+
+
 
 // Pour les données de réservation (StatCard, Widget, Graphique)
 // On importe les fonctions dont le frontend a VRAIMENT besoin
 const { 
   getActiveReservationCount,
   getRecentReservations,
-  getMonthlyEvolution
+  getMonthlyEvolution,
+   getTopSuccursalesByReservation,
 } = require('../services/reservationService');
 
 
@@ -26,30 +32,31 @@ router.get('/dashboard-data', async (req, res) => {
     const [
       vehiculesStats,      // Pour la StatCard "Véhicules au total"
       succursaleCount,     // Pour la StatCard "Succursales"
-      // activeReservations,  // Pour la StatCard "Réservations Actives"
+      activeReservations,  // Pour la StatCard "Réservations Actives"
       recentReservations,  // Pour le widget "Réservations Récentes"
-      monthlyEvolution,    // Pour le graphique "Évolution Mensuelle"
+      monthlyEvolution,
+      topSuccursalesData,    // Pour le graphique "Évolution Mensuelle"
     ] = await Promise.all([
       getVehiculeStats(),
       getSuccursaleCount(),
       getActiveReservationCount(),
       // getRecentReservations(),
       getMonthlyEvolution(),
+      getTopSuccursalesByReservation(),
     ]);
+
+    
 
     // --- ÉTAPE 3 : CONSTRUIRE LA RÉPONSE FINALE ---
     // La structure de cet objet doit correspondre exactement à ce que le frontend attend.
     const finalResponse = {
       // Pour les StatCards
-      vehicules: vehiculesStats, 
+      vehicules: vehiculesStats,
       succursales: succursaleCount,
       reservationsActives: activeReservations.count || 0,
-      
-      // Pour le widget de réservations
-      recentReservations: recentReservations, 
-      
-      // Pour le graphique d'évolution
+      recentReservations: recentReservations,
       monthlyEvolution: monthlyEvolution,
+      topSuccursalesByReservation: topSuccursalesData
     };
 
     res.json(finalResponse);
@@ -62,5 +69,28 @@ router.get('/dashboard-data', async (req, res) => {
     });
   }
 });
+
+router.get('/vehicules-by-succursale', async (req, res) => {
+  try {
+    console.log("✅ Requête reçue sur /dashboards/vehicules-by-succursale");
+
+    const result = await getVehiculeStatsBySuccursaleWithNames();
+    res.json(result);
+  } catch (error) {
+    console.error("Erreur route /vehicules-by-succursale :", error.message);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+router.get('/top-succursales', async (req, res) => {
+  try {
+    const topSuccursales = await getTopSuccursalesByReservation();
+    res.json(topSuccursales);
+  } catch (error) {
+    console.error("Erreur route /top-succursales :", error.message);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 
 module.exports = router;

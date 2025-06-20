@@ -95,3 +95,12 @@ exports.getAllSuccursalesList = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+// GET /succursales/all-list : retourne les noms et ids des succursales pour le dashboard
+exports.getSuccursaleNamesList = asyncHandler(async (req, res) => {
+  const succursales = await Succursale.findAll({
+    attributes: ['idsuccursale', 'nomsuccursale'],
+    order: [['nomsuccursale', 'ASC']]
+  });
+  res.json(succursales);
+});

@@ -163,6 +163,24 @@ app.use("/reservations", (req, res, next) => {
   });
 });
 
+// Supporte également le préfixe /api pour le service de réservations
+app.use("/api/reservations", (req, res, next) => {
+  getServiceUrl("reservation-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service reservation-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      // Remove the /api prefix when forwarding to the reservation service
+      pathRewrite: (path, req) => "/reservations" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+
 // Route pour le service de dashboards
 app.use("/dashboards", (req, res, next) => {  
   getServiceUrl("dashboard-service", (err, url) => {

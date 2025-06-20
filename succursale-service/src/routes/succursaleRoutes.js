@@ -7,7 +7,7 @@ const succursaleController = require("../controllers/succursaleController");
 const validate = require("../middlewares/validate");
 const {createSuccursaleRules,updateSuccursaleRules,} = require("../validators/succursaleValidator");
 
-
+router.get('/all-list', succursaleController.getSuccursaleNamesList);
 router.get('/nom', succursaleController.getAllSuccursalesList);
 router.get('/count', succursaleController.getSuccursaleCount);
 router.get('/next-code', succursaleController.getNextCode);

@@ -132,7 +132,7 @@ const SuccursalesPage = () => {
       // --- CORRECTION : On formate les données avec un tableau `datasets` ---
       datasets: [{
         label: 'Nombre de véhicules',
-        data: dashboardData.vehiculesBySuccursale.map(item => item.vehiculeCount),
+        data: dashboardData.vehiculesBySuccursale.map(item => item.count),
         backgroundColor: 'rgba(59, 130, 246, 0.6)',
         borderColor: 'rgba(37, 99, 235, 1)',
         borderWidth: 1,
@@ -166,9 +166,9 @@ const SuccursalesPage = () => {
             <StatCard title="Total des Véhicules" value={dashboardData?.vehicules?.total || 0} icon={Car} />
             <TopListCard 
               title="Top 3 par Réservations"
-              items={dashboardData?.topSuccursalesByReservation || []}
-              nameKey="nomsuccursale"
-              valueKey="count"
+              items={dashboardData?.topSuccursales || []}
+              nameKey="nomsuccursale" // Cela suppose que le nom est bien retourné
+              valueKey="reservationCount" // <--- CORRECTION ICI
               icon={BookMarked}
             />
           </div>

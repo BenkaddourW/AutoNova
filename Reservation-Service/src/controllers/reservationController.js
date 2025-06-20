@@ -205,3 +205,65 @@ exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
   });
   res.json(stats);
 });
+
+
+// DANS votre fichier reservationController.js
+
+// ... (ajoutez ceci avec vos autres fonctions de dashboard)
+
+// RÉCUPÉRER LE TOP 3 DES VÉHICULES LES PLUS RÉSERVÉS
+exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
+  const topVehicles = await Reservation.findAll({
+    // 1. Compter les réservations et nommer le résultat 'reservationCount'
+    attributes: [
+      'idvehicule',
+      [Sequelize.fn('COUNT', Sequelize.col('idvehicule')), 'reservationCount']
+    ],
+    
+    // 2. Joindre la table Vehicule pour obtenir le nom du véhicule
+    include: [{
+      model: Vehicule,
+      attributes: ['marque', 'modele'], // On ne récupère que ce qui est utile
+      required: true // S'assurer que les réservations sans véhicule ne sont pas comptées
+    }],
+    
+    // 3. Grouper par ID de véhicule ET par les colonnes du véhicule inclus
+    group: [
+      'idvehicule', 
+      'Vehicule.idvehicule', // Sequelize demande de grouper aussi par les colonnes du modèle inclus
+      'Vehicule.marque', 
+      'Vehicule.modele'
+    ],
+    
+    // 4. Trier par le nombre de réservations, du plus grand au plus petit
+    order: [[Sequelize.literal('reservationCount'), 'DESC']],
+    
+    // 5. Ne garder que les 3 premiers résultats
+    limit: 3,
+    
+    // On enlève les métadonnées inutiles de Sequelize pour un résultat plus propre
+    raw: true,
+    nest: true
+  });
+  
+  res.json(topVehicles);
+});
+
+// RÉCUPÉRER LE TOP 3 DES SUCCURSALES PAR RÉSERVATION
+// 🚨 Cette fonction doit retourner les succursales les plus utilisées (top 3)
+
+exports.getTopSuccursalesByReservation = asyncHandler(async (req, res) => {
+  const result = await Reservation.findAll({
+    attributes: [
+      'idsuccursalelivraison',
+      [Sequelize.fn('COUNT', Sequelize.col('idsuccursalelivraison')), 'reservationCount'],
+    ],
+    group: ['idsuccursalelivraison'],
+    order: [[Sequelize.literal('COUNT(idsuccursalelivraison)'), 'DESC']], // ✅ Fix ici
+    limit: 3,
+    raw: true
+  });
+
+  res.json(result); // Exemple : [{ idsuccursalelivraison: 2, reservationCount: 20 }, ...]
+});
+
