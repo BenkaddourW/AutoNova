@@ -20,10 +20,14 @@ exports.createClient = async (req, res) => {
 exports.updateMyProfile = async (req, res) => {
   try {
     const user = req.user;
+
+    console.log("Utilisateur connecté :", user);
+
     const client = await Client.findOne({
       where: { idutilisateur: user.idutilisateur },
     });
     if (!client) {
+      console.log("Client non trouvé pour l'utilisateur :", user.idutilisateur);
       return res.status(404).json({ message: "Client non trouvé." });
     }
 
@@ -41,11 +45,24 @@ exports.updateMyProfile = async (req, res) => {
       ...clientFields
     } = req.body;
 
+    console.log("Champs client à mettre à jour :", clientFields);
+    console.log("Champs utilisateur à envoyer à auth-service :", {
+      adresse1,
+      adresse2,
+      ville,
+      codepostal,
+      province,
+      pays,
+      numerotelephone,
+      numeromobile,
+      email,
+    });
+
     // Mets à jour les champs client
     await Client.update(clientFields, { where: { idclient: client.idclient } });
 
     // Mets à jour les champs utilisateur via auth-service (via la gateway)
-    await axios.put(
+    const authServiceResponse = await axios.put(
       `http://localhost:3000/auth/utilisateurs/${user.idutilisateur}`,
       {
         adresse1,
@@ -63,10 +80,13 @@ exports.updateMyProfile = async (req, res) => {
       }
     );
 
+    console.log("Réponse du auth-service :", authServiceResponse.data);
+
     const updatedClient = await Client.findByPk(client.idclient);
 
     res.json(updatedClient);
   } catch (err) {
+    console.error("Erreur dans updateMyProfile:", err.message);
     res.status(400).json({
       message: "Erreur lors de la mise à jour du profil.",
       error: err.message,
