@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import AppRouter from './router'; // On importe le composant qui CONTIENT le RouterProvider
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeProvider';
+import { Toaster } from 'react-hot-toast';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
