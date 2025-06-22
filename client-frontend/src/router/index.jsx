@@ -1,3 +1,5 @@
+// src/router/AppRouter.js
+
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 
 // --- Layouts ---
@@ -12,13 +14,11 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import AboutPage from '../pages/AboutPage';
 import ContactPage from '../pages/ContactPage';
-import AccountPage from '../pages/AccountPage'; // La page "coquille"
-import CompleteProfilePage from '../pages/CompleteProfilePage';
+import AccountPage from '../pages/AccountPage';
 import ReservationPage from '../pages/ReservationPage';
 
 // --- Composants de Contenu pour le Compte ---
 import ProfileDetails from '../components/account/ProfileDetails';
-// import BookingsList from '../components/account/BookingsList'; 
 
 // --- Composants de Routage ---
 import ProtectedRoute from './ProtectedRoute';
@@ -39,7 +39,6 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <AppLayout />,
-    // errorElement: <ErrorPage />, // Pour une gestion d'erreur globale
     children: [
       // --- Routes Publiques ---
       { index: true, element: <HomePage /> },
@@ -51,32 +50,30 @@ const router = createBrowserRouter([
       { path: 'contact', element: <ContactPage /> },
 
       // --- Routes Protégées ---
-      // Ce parent vérifie si l'utilisateur est connecté pour toutes les routes enfants.
       {
-        element: <ProtectedRoute />,
+        element: <ProtectedRoute />, // Ce parent vérifie si l'utilisateur est connecté pour toutes les routes enfants.
         children: [
+          // La page /compte est maintenant la destination principale pour les utilisateurs connectés.
           {
-            path: 'completer-profil',
-            element: <CompleteProfilePage />,
+            path: 'compte',
+            element: <AccountPage />,
+            children: [
+              {
+                index: true,
+                element: <ProfileDetails />,
+              },
+              {
+                // Note : Cette route sera accessible même si le profil est incomplet.
+                // Pour la protéger, il faudrait la déplacer dans le groupe requireProfile={true}
+                path: 'reservations',
+                element: <div>Historique des réservations.</div>,
+              },
+            ],
           },
           // Ce sous-groupe vérifie EN PLUS si le profil est complet.
           {
             element: <ProtectedRoute requireProfile={true} />,
             children: [
-              {
-                path: 'compte',
-                element: <AccountPage />, // La "coquille" du compte
-                children: [
-                  {
-                    index: true,
-                    element: <ProfileDetails />,
-                  },
-                  {
-                    path: 'reservations',
-                    element: <div>Historique des réservations.</div>,
-                  },
-                ],
-              },
               {
                 path: 'reservation',
                 element: <ReservationPage />,

@@ -23,9 +23,9 @@ const ProtectedRoute = ({ requireProfile = false }) => {
   }
   
   // 3. Si l'utilisateur EST authentifié, on vérifie si la route requiert un profil complet.
-  if (requireProfile && !isProfileComplete) {
-    // Il est connecté mais son profil est incomplet, on le force à aller sur la page de complétion.
-    return <Navigate to="/completer-profil" replace />;
+ if (requireProfile && !isProfileComplete) {
+    // On le redirige vers /compte. On peut ajouter un état pour afficher un message spécifique.
+    return <Navigate to="/compte" state={{ fromCompletion: true }} replace />;
   }
 
   // 4. Si toutes les vérifications passent, on affiche la page demandée.

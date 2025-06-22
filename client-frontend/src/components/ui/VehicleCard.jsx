@@ -1,25 +1,56 @@
+// src/components/ui/VehicleCard.jsx (Version améliorée)
 import { Link } from 'react-router-dom';
-import { Users, Gauge, GitBranch } from 'lucide-react';
+import { Users, Gauge, GitBranch, Droplet } from 'lucide-react';
 
-const VehicleCard = ({ vehicle }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden group transition-transform duration-300 hover:-translate-y-1">
-    <Link to={`/vehicules/${vehicle.id}`}>
-      <img src={vehicle.imageUrl} alt={`${vehicle.marque} ${vehicle.modele}`} className="w-full h-48 object-cover" />
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{vehicle.marque} {vehicle.modele}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.categorie}</p>
-        <div className="flex justify-between items-center mt-4 text-sm text-slate-600 dark:text-slate-300">
-          <span className="flex items-center gap-1"><Users size={16} /> {vehicle.sieges}</span>
-          <span className="flex items-center gap-1"><Gauge size={16} /> {vehicle.transmission}</span>
-          <span className="flex items-center gap-1"><GitBranch size={16} /> {vehicle.energie}</span>
+const VehicleCard = ({ vehicle }) => {
+  // Trouve l'image principale ou prend la première image disponible.
+  // Si aucune image n'est disponible, utilise une image par défaut.
+  const mainImage = vehicle.VehiculeImages?.find(img => img.estprincipale)?.urlimage 
+                  || vehicle.VehiculeImages?.[0]?.urlimage 
+                  || 'https://via.placeholder.com/400x300?text=Image+Non+Disponible';
+
+  const features = [
+    { icon: <Users size={16} />, label: `${vehicle.nombreplaces} sièges` },
+    { icon: <Gauge size={16} />, label: vehicle.transmission },
+    { icon: <Droplet size={16} />, label: vehicle.energie },
+  ];
+
+  return (
+    <div className="card bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+      <figure>
+        <img src={mainImage} alt={`Image de ${vehicle.marque} ${vehicle.modele}`} className="h-56 w-full object-cover" />
+      </figure>
+      <div className="card-body p-4">
+        <div className="flex justify-between items-start">
+            <div>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{vehicle.categorie}</p>
+                <h2 className="card-title text-lg font-bold text-slate-800 dark:text-white">
+                  {vehicle.marque} {vehicle.modele}
+                </h2>
+            </div>
+            <div className="text-right">
+                <p className="text-2xl font-bold text-primary">${vehicle.tarifjournalier}</p>
+                <p className="text-xs text-slate-500">/ jour</p>
+            </div>
         </div>
-        <div className="mt-4 text-right">
-          <p className="text-sm">à partir de</p>
-          <p className="text-xl font-bold text-sky-600 dark:text-sky-400">{vehicle.tarif}€<span className="text-sm font-normal text-slate-500">/jour</span></p>
+        
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600 dark:text-slate-300 my-4">
+            {features.map((feat, i) => (
+                <div key={i} className="flex items-center gap-2">
+                    {feat.icon}
+                    <span>{feat.label}</span>
+                </div>
+            ))}
+        </div>
+
+        <div className="card-actions justify-end mt-2">
+          <Link to={`/vehicules/${vehicle.idvehicule}`} className="btn btn-primary w-full">
+            Réserver maintenant
+          </Link>
         </div>
       </div>
-    </Link>
-  </div>
-);
+    </div>
+  );
+};
 
 export default VehicleCard;

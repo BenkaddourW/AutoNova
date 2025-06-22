@@ -35,3 +35,16 @@ export const logout = (refreshToken) => {
     body: JSON.stringify({ refreshToken }),
   }).then(handleResponse);
 };
+
+// Mise à jour d'un utilisateur existant
+// export const updateUser = (idutilisateur, userData) => {
+//   const token = localStorage.getItem('accessToken');
+//   return fetch(`${AUTH_API_URL}/utilisateurs/${idutilisateur}`, {
+//     method: 'PUT',
+//     headers: {
+//       'Content-Type': 'application/json',
+//       Authorization: `Bearer ${token}`,
+//     },
+//     body: JSON.stringify(userData),
+//   }).then(handleResponse);
+// };
