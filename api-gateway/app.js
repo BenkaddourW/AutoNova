@@ -14,21 +14,19 @@ const PORT = process.env.PORT || 3000;
 
 const consul = new Consul({ host: "localhost", port: 8500 });
 
-//app.use(express.json());
 app.use(cors());
 app.use(helmet());
-app.use("/auth/profile", authenticateJWT);
 
-// Protection de la route /auth/profile
+// Protection des routes
 app.use("/auth/profile", authenticateJWT);
 app.use("/clients", authenticateJWT);
 
 // Fonction pour obtenir l'URL d'un service depuis Consul
 function getServiceUrl(serviceName, cb) {
+  // ... (votre fonction getServiceUrl reste inchangée)
   console.log("Appel à getServiceUrl pour", serviceName);
   const http = require("http");
-  http
-    .get("http://127.0.0.1:8500/v1/agent/services", (res) => {
+  http.get("http://127.0.0.1:8500/v1/agent/services", (res) => {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
@@ -37,147 +35,72 @@ function getServiceUrl(serviceName, cb) {
           for (let id in services) {
             if (services[id].Service === serviceName) {
               const service = services[id];
-              console.log(
-                "Service trouvé:",
-                service.Service,
-                service.Address,
-                service.Port
-              );
+              console.log("Service trouvé:", service.Service, service.Address, service.Port);
               return cb(null, `http://${service.Address}:${service.Port}`);
             }
           }
           console.log("Service non trouvé dans Consul:", serviceName);
           cb(new Error("Service not found"));
-        } catch (err) {
-          cb(err);
-        }
+        } catch (err) { cb(err); }
       });
-    })
-    .on("error", (err) => {
-      console.error("Erreur HTTP Consul:", err);
-      cb(err);
-    });
+    }).on("error", (err) => { console.error("Erreur HTTP Consul:", err); cb(err); });
 }
 
-// Route pour le service d'authentification
-// Cette route va intercepter les requêtes vers /auth et les rediriger vers le service d'authentification
-// en utilisant le proxy middleware de http-proxy-middleware
+// Option commune pour désactiver le cache
+const noCacheOptions = {
+  onProxyRes(proxyRes, req, res) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  }
+};
 
+// Route pour le service d'authentification (généralement, on peut le laisser en cache)
 app.use("/auth", (req, res, next) => {
-  console.log("Requête reçue:", req.method, req.url);
-  console.log("Headers:", req.headers);
-
   getServiceUrl("auth-service", (err, url) => {
-    if (err) {
-      console.error("Erreur lors de la récupération du service:", err);
-      return res.status(502).send("Service auth-service indisponible");
-    }
-
-    console.log("URL cible résolue:", url);
-
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/auth" + path,
-      proxyTimeout: 10000,
-      onProxyReq(proxyReq, req, res) {
-        console.log("Proxy request envoyée...");
-      },
-      onProxyRes(proxyRes, req, res) {
-        console.log("Réponse du service reçue:", proxyRes.statusCode);
-      },
-      onError(err, req, res) {
-        console.error("Erreur dans le proxy:", err);
-        res.status(502).send("Erreur lors du proxy");
-      },
-    });
-    if (!proxy) {
-      console.error("Proxy non créé - URL invalide ?");
-      return res.status(502).send("Proxy non initialisé");
-    }
-    console.log("Exécution du proxy avec URL:", url);
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service auth-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/auth" + path, proxyTimeout: 10000 })(req, res, next);
   });
 });
 
 // Route pour le service client
 app.use("/clients", (req, res, next) => {
   getServiceUrl("client-service", (err, url) => {
-    if (err) {
-      return res.status(502).send("Service client-service indisponible");
-    }
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/clients" + path,
-      proxyTimeout: 10000,
-    });
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service client-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/clients" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
   });
 });
 
 // Route pour le service de véhicules
 app.use("/vehicules", (req, res, next) => {
   getServiceUrl("vehicule-service", (err, url) => {
-    if (err) {
-      return res.status(502).send("Service vehicule-service indisponible");
-    }
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/vehicules" + path,
-      proxyTimeout: 10000,
-    });
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service vehicule-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/vehicules" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
   });
 });
 
 // Route pour le service de succursales
 app.use("/succursales", (req, res, next) => { 
   getServiceUrl("succursale-service", (err, url) => {
-    if (err) {
-      return res.status(502).send("Service succursale-service indisponible");
-    }
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/succursales" + path,
-      proxyTimeout: 10000,
-    });
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service succursale-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/succursales" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
   });
 });
+
 // Route pour le service de réservations
 app.use("/reservations", (req, res, next) => {
   getServiceUrl("reservation-service", (err, url) => {
-    if (err) {
-      return res.status(502).send("Service reservation-service indisponible");
-    }
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/reservations" + path,
-      proxyTimeout: 10000,
-    });
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service reservation-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/reservations" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
   });
 });
-
-
 
 // Route pour le service de dashboards
 app.use("/dashboards", (req, res, next) => {  
   getServiceUrl("dashboard-service", (err, url) => {
-    if (err) {
-      return res.status(502).send("Service dashboard-service indisponible");
-    }
-    const proxy = createProxyMiddleware({
-      target: url,
-      changeOrigin: true,
-      pathRewrite: (path, req) => "/dashboards" + path,
-      proxyTimeout: 10000,
-    });
-    proxy(req, res, next);
+    if (err) return res.status(502).send("Service dashboard-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/dashboards" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
   });
 });
 

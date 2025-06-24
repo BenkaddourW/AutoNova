@@ -8,11 +8,22 @@ const {
   updateVehiculeRules,
 } = require("../validators/vehiculeValidator");
 
+
+
 // --- Routes pour les statistiques ---
 router.get('/stats/by-marque', vehiculeController.getVehiculeStatsByMarque);
 router.get('/stats/general', vehiculeController.getVehiculeGeneralStats);
 router.get('/stats/by-succursale', vehiculeController.getVehiculeStatsBySuccursale);
+
+// --- Routes pour les options de filtre publiques ---
+router.get('/public-filter-options', vehiculeController.getPublicFilterOptions);
+
+// --- Routes pour les options de filtre ---admin
 router.get('/filter-options', vehiculeController.getVehiculeFilterOptions);
+
+
+// Routes pour la recherche de véhicules
+router.get('/search', vehiculeController.searchAvailableVehicles);
 
 // --- Routes pour le CRUD ---
 router.get("/", vehiculeController.getVehicules);

@@ -64,11 +64,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       validate: { min: 1 }
     },
-    idpaiement: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      validate: { min: 1 }
-    },
+    // idpaiement: {
+    //   type: DataTypes.INTEGER,
+    //   allowNull: false,
+    //   validate: { min: 1 }
+    // },
   },
   {
     tableName: "reservation",

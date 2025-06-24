@@ -42,14 +42,7 @@ exports.getReservationById = asyncHandler(async (req, res) => {
 
 // CRÉER UNE NOUVELLE RÉSERVATION
 exports.createReservation = asyncHandler(async (req, res) => {
-  // CHANGEMENT 3: L'appel à verifyForeignKeys est supprimé
-  /*
-  const check = await verifyForeignKeys(req.body);
-  if (!check.ok) {
-    res.status(400);
-    throw new Error(check.message);
-  }
-  */
+
   const newReservation = await Reservation.create(req.body);
   res.status(201).json(newReservation);
 });
@@ -61,17 +54,7 @@ exports.updateReservation = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Réservation non trouvée");
   }
-  // CHANGEMENT 4: L'appel à verifyForeignKeys est supprimé
-  /*
-  const check = await verifyForeignKeys({
-    ...reservation.dataValues,
-    ...req.body,
-  });
-  if (!check.ok) {
-    res.status(400);
-    throw new Error(check.message);
-  }
-  */
+
   await reservation.update(req.body);
   res.json(reservation);
 });
@@ -88,46 +71,47 @@ exports.deleteReservation = asyncHandler(async (req, res) => {
 });
 
 // Vérifie la disponibilité d'une liste de véhicules pour une période donnée
-exports.getDisponibilites = async (req, res) => {
-  try {
+// ✅ CORRECTION : Envelopper la fonction avec asyncHandler pour une gestion d'erreur robuste.
+// Vérifie la disponibilité d'une liste de véhicules pour une période donnée
+exports.getDisponibilites = asyncHandler(async (req, res) => {
     const { idsvehicules, datedebut, datefin } = req.body;
+    
+    // La validation des paramètres est une bonne pratique.
     if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
-      return res
-        .status(400)
-        .json({ message: "Paramètres manquants ou invalides." });
+      res.status(400); // Bad Request
+      throw new Error("Les paramètres 'idsvehicules', 'datedebut' et 'datefin' sont requis et doivent être valides.");
     }
 
+    // Recherche des réservations qui se chevauchent avec la période demandée.
     const reservations = await Reservation.findAll({
       where: {
         idvehicule: { [Op.in]: idsvehicules },
         [Op.or]: [
-          {
+          { // Une réservation existante commence avant et se termine après la période demandée (englobante).
             daterdv: { [Op.lte]: datefin },
             dateretour: { [Op.gte]: datedebut },
           },
-          {
+          { // Une réservation existante commence pendant la période demandée.
             daterdv: { [Op.between]: [datedebut, datefin] },
           },
-          {
+          { // Une réservation existante se termine pendant la période demandée.
             dateretour: { [Op.between]: [datedebut, datefin] },
           },
         ],
       },
     });
 
-    const indisponibles = reservations.map((r) => r.idvehicule);
+    // On crée un Set des IDs des véhicules déjà réservés pour une recherche efficace.
+    const indisponiblesIds = new Set(reservations.map((r) => r.idvehicule));
+    
+    // On filtre la liste initiale des IDs pour ne garder que ceux qui ne sont pas dans le Set des indisponibles.
     const disponibles = idsvehicules.filter(
-      (id) => !indisponibles.includes(id)
+      (id) => !indisponiblesIds.has(id)
     );
 
     res.json({ disponibles });
-  } catch (err) {
-    res.status(400).json({
-      message: "Erreur lors de la vérification des disponibilités.",
-      error: err.message,
-    });
-  }
-};
+});
+
 
 // === FONCTIONS POUR LE DASHBOARD ===
 
@@ -157,7 +141,7 @@ exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
   res.json({ count });
 });
 
-// RÉCUPÉRER L'ÉVOLUTION MENSUELLE
+// RÉCUPÉRER LE NOMBRE DE RÉSERVATIONS PAR MOIS SUR LES 12 DERNIERS MOIS
 exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
