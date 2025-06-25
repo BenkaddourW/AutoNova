@@ -15,7 +15,6 @@ const Sidebar = () => {
     // ====================================================
     { to: '/vehicules', text: 'Véhicules', icon: Car, role: ['admin', 'employe'] },
     { to: '/reservations', text: 'Réservations', icon: CalendarCheck, role: ['admin', 'employe'] },
-    { to: '/inspections', text: 'Inspections', icon: ListChecks, role: ['admin', 'employe'] },
     { to: '/succursales', text: 'Succursales', icon: Building, role: ['admin', 'employe'] },
     { to: '/taxes', text: 'Taxes', icon: Banknote, role: ['admin'] },
     { to: '/utilisateurs', text: 'Utilisateurs', icon: Users, role: ['admin'] },
