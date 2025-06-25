@@ -1,36 +1,31 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Taxe = sequelize.define(
-  "Taxe",
+const Penalite = sequelize.define(
+  "Penalite",
   {
-    idtaxe: {
+    idpenalite: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-    denomination: {
+    codepenalite: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
-      validate: { len: [1, 100] },
     },
-    abrege: {
+    typepenalite: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
-      validate: { len: [1, 50] },
     },
-    taux: {
-      type: DataTypes.DECIMAL,
+    description: {
+      type: DataTypes.STRING,
       allowNull: false,
-      validate: { min: 0, max: 100 },
     },
   },
   {
-    tableName: "taxe",
+    tableName: "penalite",
     timestamps: false,
   }
 );
 
-module.exports = Taxe;
+module.exports = Penalite;

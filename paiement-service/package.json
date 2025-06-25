@@ -1,5 +1,5 @@
 {
-  "name": "taxe-service",
+  "name": "paiement-service",
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
@@ -12,23 +12,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.0",
     "axios": "^1.10.0",
-    "bcryptjs": "^3.0.2",
     "consul": "^2.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "express-async-handler": "^1.2.0",
-    "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
-    "http-proxy-middleware": "^3.0.5",
-    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "pg": "^8.16.1",
-    "sequelize": "^6.37.7"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "stripe": "^18.2.1"
   }
 }

@@ -19,9 +19,11 @@ app.use(cors());
 app.use(helmet());
 app.use("/auth/profile", authenticateJWT);
 
-// Protection de la route /auth/profile
+// Protection des routes sensibles
+// Ici, nous allons protéger les routes qui nécessitent une authentification JWT
 app.use("/auth/profile", authenticateJWT);
 app.use("/clients", authenticateJWT);
+app.use("/paiements", authenticateJWT);
 
 // Fonction pour obtenir l'URL d'un service depuis Consul
 function getServiceUrl(serviceName, cb) {
@@ -142,6 +144,38 @@ app.use("/reservations", (req, res, next) => {
       target: url,
       changeOrigin: true,
       pathRewrite: (path, req) => "/reservations" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+// Route pour le service paiement
+app.use("/paiements", (req, res, next) => {
+  getServiceUrl("paiement-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service paiement-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/paiements" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+// Route pour le service contrat protégée par JWT
+app.use("/contrats", authenticateJWT, (req, res, next) => {
+  getServiceUrl("contrat-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service contrat-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/contrats" + path,
       proxyTimeout: 10000,
     });
     proxy(req, res, next);

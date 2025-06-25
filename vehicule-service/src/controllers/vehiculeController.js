@@ -212,19 +212,33 @@ exports.getVehiculeStatsByMarque = asyncHandler(async (req, res) => {
 });
 
 // Recherche de véhicules disponibles selon critères
+
 exports.getVehiculesDisponibles = async (req, res) => {
   try {
     const { idsuccursale, datedebut, datefin, modele, marque, categorie } =
       req.query;
 
-    // 1. Recherche les véhicules correspondant aux critères de succursale et autres filtres
+    // 1. Recherche les véhicules correspondant aux critères
     const where = {};
     if (idsuccursale) where.succursaleidsuccursale = idsuccursale;
     if (modele) where.modele = modele;
     if (marque) where.marque = marque;
     if (categorie) where.categorie = categorie;
+    where.statut = "disponible";
 
-    const vehicules = await Vehicule.findAll({ where });
+    // Inclure la photo principale
+    const vehicules = await Vehicule.findAll({
+      where,
+      include: [
+        {
+          model: VehiculeImage,
+          as: "VehiculeImages",
+          where: { estprincipale: true },
+          required: false,
+          attributes: ["urlimage"],
+        },
+      ],
+    });
 
     if (!vehicules.length) {
       return res.json([]);
@@ -232,22 +246,24 @@ exports.getVehiculesDisponibles = async (req, res) => {
 
     const idsvehicules = vehicules.map((v) => v.idvehicule);
 
-    // 2. Appel au reservation-service pour vérifier la disponibilité (sans header Authorization)
+    // 2. Appel au reservation-service pour vérifier la disponibilité
     const response = await axios.post(
       "http://localhost:3000/reservations/disponibilites",
-      {
-        idsvehicules,
-        datedebut,
-        datefin,
-      }
+      { idsvehicules, datedebut, datefin }
     );
 
     const disponibles = response.data.disponibles;
 
-    // 3. Retourne uniquement les véhicules disponibles
-    const vehiculesDisponibles = vehicules.filter((v) =>
-      disponibles.includes(v.idvehicule)
-    );
+    // 3. Retourne uniquement les véhicules disponibles avec leur photo principale
+    const vehiculesDisponibles = vehicules
+      .filter((v) => disponibles.includes(v.idvehicule))
+      .map((v) => ({
+        ...v.toJSON(),
+        photoPrincipale:
+          v.VehiculeImages && v.VehiculeImages.length > 0
+            ? v.VehiculeImages[0].urlimage
+            : null,
+      }));
 
     res.json(vehiculesDisponibles);
   } catch (err) {
