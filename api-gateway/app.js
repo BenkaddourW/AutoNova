@@ -104,6 +104,26 @@ app.use("/dashboards", (req, res, next) => {
   });
 });
 
+
+// route pour le service de taxes
+app.use("/taxes", (req, res, next) => {   
+  getServiceUrl("taxe-service", (err, url) => {
+    if (err) return res.status(502).send("Service taxe-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/taxes" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
+  });
+});
+
+
+// route pour le service utilisateur
+app.use("/utilisateurs", (req, res, next) => {   
+  getServiceUrl("utilisateur-service", (err, url) => {
+    if (err) return res.status(502).send("Service utilisateur-service indisponible");
+    createProxyMiddleware({ target: url, changeOrigin: true, pathRewrite: (path, req) => "/utilisateurs" + path, proxyTimeout: 10000, ...noCacheOptions })(req, res, next);
+  });
+});
+
+
+
 app.listen(PORT, () => {
   console.log(`API Gateway démarrée sur le port ${PORT}`);
 });

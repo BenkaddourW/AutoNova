@@ -283,3 +283,47 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
     });
 });
 
+
+
+// --- OBTENIR LES VÉHICULES EN VEDETTE (AVEC AGRÉGATION) ---
+exports.getFeaturedVehicles = asyncHandler(async (req, res) => {
+  try {
+    const topIdsResponse = await axios.get(`${GATEWAY_URL}/reservations/stats/top-ids?limit=3`);
+    const topVehicleIds = topIdsResponse.data;
+
+    if (!topVehicleIds || topVehicleIds.length === 0) {
+      return res.json([]); // Renvoie un tableau vide si aucun véhicule populaire
+    }
+
+    const featuredVehicles = await Vehicule.findAll({
+      where: { idvehicule: { [Op.in]: topVehicleIds } },
+      include: [{ model: VehiculeImage, as: 'VehiculeImages' }]
+    });
+    
+    // On agrège les infos de succursale pour ces véhicules
+    const allSuccursaleIds = [...new Set(featuredVehicles.map(v => v.succursaleidsuccursale))];
+    const succursalesResponse = await axios.get(`${GATEWAY_URL}/succursales`, {
+        params: { ids: allSuccursaleIds.join(',') }
+    });
+    const succursaleMap = new Map(succursalesResponse.data.map(s => [s.idsuccursale, s]));
+    
+    const enrichedVehicles = featuredVehicles.map(vehicle => {
+        const vehicleJson = vehicle.toJSON();
+        vehicleJson.Succursale = succursaleMap.get(vehicle.succursaleidsuccursale) || null;
+        return vehicleJson;
+    });
+
+    const sortedEnrichedVehicles = topVehicleIds.map(id => 
+      enrichedVehicles.find(v => v.idvehicule === id)
+    ).filter(Boolean);
+
+    res.json(sortedEnrichedVehicles);
+
+  } catch (error) {
+    console.error("Erreur lors de la récupération des véhicules en vedette:", error.message);
+    res.status(500).json({ message: "Impossible de récupérer les véhicules en vedette." });
+  }
+});
+
+
+

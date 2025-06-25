@@ -251,3 +251,24 @@ exports.getTopSuccursalesByReservation = asyncHandler(async (req, res) => {
   res.json(result); // Exemple : [{ idsuccursalelivraison: 2, reservationCount: 20 }, ...]
 });
 
+
+
+// // RÉCUPÉRER LES VÉHICULES LES PLUS RÉSERVÉS (TOP 3)
+exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 3;
+
+  const topVehicles = await Reservation.findAll({
+    attributes: [
+      'idvehicule',
+      [Sequelize.fn('COUNT', Sequelize.col('idvehicule')), 'reservationCount']
+    ],
+    group: ['idvehicule'],
+    // ✅ CORRECTION : On trie par la fonction de comptage elle-même.
+    order: [[Sequelize.fn('COUNT', Sequelize.col('idvehicule')), 'DESC']],
+    limit: limit,
+    raw: true
+  });
+  
+  const topVehicleIds = topVehicles.map(v => v.idvehicule);
+  res.json(topVehicleIds);
+});

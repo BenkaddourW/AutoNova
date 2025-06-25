@@ -21,9 +21,12 @@ router.get('/public-filter-options', vehiculeController.getPublicFilterOptions);
 // --- Routes pour les options de filtre ---admin
 router.get('/filter-options', vehiculeController.getVehiculeFilterOptions);
 
+router.get('/search', vehiculeController.searchAvailableVehicles);
+
+
+router.get('/featured', vehiculeController.getFeaturedVehicles);
 
 // Routes pour la recherche de véhicules
-router.get('/search', vehiculeController.searchAvailableVehicles);
 
 // --- Routes pour le CRUD ---
 router.get("/", vehiculeController.getVehicules);

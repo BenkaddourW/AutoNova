@@ -1,41 +1,38 @@
+// src/pages/HomePage.jsx (Version Finale avec Données Dynamiques)
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Car, ShieldCheck, Clock, Star } from 'lucide-react';
+import { Car, ShieldCheck, Clock } from 'lucide-react';
+import * as vehicleService from '../services/vehicleService';
 
-// --- Composants ---
 import HeroSearchForm from '../components/HeroSearchForm';
 import VehicleCard from '../components/ui/VehicleCard';
-import AnimatedSection from '../components/ui/AnimatedSection'; // Notre nouveau composant d'animation
+import AnimatedSection from '../components/ui/AnimatedSection';
 
-// --- IMPORTANT : Importez vos propres images ici ---
-// Placez vos images dans le dossier `src/assets/`
-import heroBg from '../assets/hero-background.png'; // Image de fond pour la section Hero
-import suvImg from '../assets/suv-image.jpg';
-import sedanImg from '../assets/sedan-image.jpg';
-import electricImg from '../assets/electric-image.jpg';
-import avatar1 from '../assets/avatar1.jpg'; // Image pour témoignage
-import avatar2 from '../assets/avatar2.jpg';
-
-// Données de simulation
-const featuredVehicles = [
-  { id: 1, marque: 'Tesla', modele: 'Model Y', categorie: 'VUS Électrique', sieges: 5, transmission: 'Auto', energie: 'Électrique', tarif: 95, imageUrl: suvImg },
-  { id: 2, marque: 'Toyota', modele: 'Camry', categorie: 'Berline', sieges: 5, transmission: 'Auto', energie: 'Hybride', tarif: 65, imageUrl: sedanImg },
-  { id: 3, marque: 'Hyundai', modele: 'Ioniq 5', categorie: 'Électrique', sieges: 5, transmission: 'Auto', energie: 'Électrique', tarif: 80, imageUrl: electricImg },
-];
-
-const testimonials = [
-    { name: 'Alexandre P.', role: 'Voyageur d\'affaires', quote: 'Service impeccable et voiture très propre. Le processus de réservation en ligne était d\'une simplicité déconcertante. Je recommande !', avatar: avatar1 },
-    { name: 'Sophie L.', role: 'Famille en vacances', quote: 'Nous avons loué un VUS pour nos vacances. Le véhicule était parfait et spacieux. AutoNova a rendu notre voyage beaucoup plus simple.', avatar: avatar2 },
-];
+import heroBg from '../assets/hero-background.png';
 
 const HomePage = () => {
-  // Simule une donnée qui viendrait de l'API
-  const [totalVehicles, setTotalVehicles] = useState(0);
-
+  const [featuredVehicles, setFeaturedVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    // Simule un appel API pour récupérer le nombre total de véhicules
-    setTimeout(() => setTotalVehicles(53), 1000); 
-  }, []);
+    const fetchFeaturedVehicles = async () => {
+      try {
+        setLoading(true);
+        // Cet appel va maintenant déclencher l'orchestration dans le backend
+        const vehicles = await vehicleService.getFeaturedVehicles();
+        setFeaturedVehicles(vehicles);
+      } catch (error) {
+        console.error("Erreur lors de la récupération des véhicules en vedette:", error);
+        // En cas d'erreur, on affiche un tableau vide pour ne pas faire planter la page
+        setFeaturedVehicles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFeaturedVehicles();
+  }, []); // Le tableau vide [] assure que cet effet ne se lance qu'une seule fois au montage
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900">
@@ -56,7 +53,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* === Section Avantages (Fond clair pour le contraste) === */}
+      {/* === Section Avantages === */}
       <section className="py-20 bg-white dark:bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-16">
@@ -65,22 +62,22 @@ const HomePage = () => {
           </AnimatedSection>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <AnimatedSection>
-              <div className="feature-card">
-                <Car className="h-12 w-12 text-sky-500 mb-4" />
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Plus de {totalVehicles} Véhicules</h3>
+              <div className="p-8">
+                <Car className="h-12 w-12 text-sky-500 mb-4 mx-auto" />
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Large Flotte de Véhicules</h3>
                 <p className="mt-2 text-slate-600 dark:text-slate-400">De la citadine économique au VUS de luxe, trouvez la voiture qui vous correspond.</p>
               </div>
             </AnimatedSection>
             <AnimatedSection>
-              <div className="feature-card">
-                <ShieldCheck className="h-12 w-12 text-sky-500 mb-4" />
+              <div className="p-8">
+                <ShieldCheck className="h-12 w-12 text-sky-500 mb-4 mx-auto" />
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Réservation Sûre et Flexible</h3>
                 <p className="mt-2 text-slate-600 dark:text-slate-400">Annulation facile et options de paiement sécurisées pour votre tranquillité.</p>
               </div>
             </AnimatedSection>
              <AnimatedSection>
-              <div className="feature-card">
-                <Clock className="h-12 w-12 text-sky-500 mb-4" />
+              <div className="p-8">
+                <Clock className="h-12 w-12 text-sky-500 mb-4 mx-auto" />
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Support Client 24/7</h3>
                 <p className="mt-2 text-slate-600 dark:text-slate-400">Notre équipe est là pour vous aider à tout moment, où que vous soyez.</p>
               </div>
@@ -93,20 +90,30 @@ const HomePage = () => {
       <section className="py-20 bg-slate-50 dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Notre Flotte en Vedette</h2>
+            <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Les Plus Populaires</h2>
+            <p className="mt-2 text-slate-500">Découvrez les véhicules préférés de nos clients.</p>
           </AnimatedSection>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredVehicles.map(v => <VehicleCard key={v.id} vehicle={v} />)}
-          </div>
+          
+          {loading ? (
+            <div className="text-center"><span className="loading loading-dots loading-lg text-primary"></span></div>
+          ) : featuredVehicles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredVehicles.map(v => (
+                // Le composant VehicleCard est réutilisé ici. Il fonctionnera car les données sont formatées correctement par le backend.
+                <VehicleCard key={v.idvehicule} vehicle={v} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-slate-500">Aucun véhicule en vedette pour le moment.</p>
+          )}
+
           <div className="text-center mt-12">
-            <Link to="/vehicules" className="btn-primary text-lg px-8 py-3">
+            <Link to="/vehicules" className="btn btn-primary text-lg px-8 py-3">
               Voir tous nos véhicules
             </Link>
           </div>
         </div>
       </section>
-
-     
     </div>
   );
 };

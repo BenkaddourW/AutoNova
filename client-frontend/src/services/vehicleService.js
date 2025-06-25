@@ -78,3 +78,14 @@ export const searchVehicles = async (params) => {
         handleError(error);
     }
 };
+
+
+// NOUVELLE VERSION CORRIGÉE
+export const getFeaturedVehicles = async () => { // <--- "Featured" correct
+    try {
+        const response = await apiClient.get('/vehicules/featured');
+        return response.data;
+    } catch (error) {
+        handleError(error);
+    }
+};
