@@ -10,7 +10,6 @@ const Sidebar = () => {
     { to: '/', text: 'Dashboard', icon: LayoutDashboard, role: ['Admin', 'Agent'] },
     { to: '/vehicules', text: 'Véhicules', icon: Car, role: ['Admin', 'Agent'] },
     { to: '/reservations', text: 'Réservations', icon: CalendarCheck, role: ['Admin', 'Agent'] },
-    { to: '/inspections', text: 'Inspections', icon: ListChecks, role: ['Admin', 'Agent'] },
     { to: '/succursales', text: 'Succursales', icon: Building, role: ['Admin', 'Agent'] },
     { to: '/taxes', text: 'Taxes', icon: Building, role: ['Admin'] },
     { to: '/utilisateurs', text: 'Utilisateurs', icon: Users, role: ['Admin'] },
