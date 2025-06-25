@@ -9,20 +9,12 @@ const {
   Succursale,
 } = require("../models");
 
-// Les anciennes importations individuelles sont supprimées :
-// const Reservation = require("../models/reservation");
-// const Client = require("../models/client");
-// etc...
+
 
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
 
-// CHANGEMENT 2: La fonction verifyForeignKeys a été supprimée, comme demandé.
-/*
-async function verifyForeignKeys(body) {
-  // ... contenu de la fonction supprimé
-}
-*/
+
 
 // AFFICHER TOUTES LES RÉSERVATIONS
 exports.getReservations = asyncHandler(async (req, res) => {
@@ -177,6 +169,8 @@ exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
   res.json({ labels, data });
 });
 
+
+
 // RÉCUPÉRER LE NOMBRE DE RÉSERVATIONS PAR SUCCURSALE
 exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
   const stats = await Reservation.findAll({
@@ -193,7 +187,7 @@ exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
 
 // DANS votre fichier reservationController.js
 
-// ... (ajoutez ceci avec vos autres fonctions de dashboard)
+
 
 // RÉCUPÉRER LE TOP 3 DES VÉHICULES LES PLUS RÉSERVÉS
 exports.getTopReservedVehicles = asyncHandler(async (req, res) => {

@@ -8,8 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node src/server.js"
-  },
+    "start": "vite"  },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "axios": "^1.10.0",

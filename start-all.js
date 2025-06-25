@@ -1,31 +1,59 @@
-const { spawn } = require("child_process");
+// Importer les modules nécessaires
+const { spawn } = require('child_process');
+const path = require('path');
+const chalk = require('chalk'); // On utilise la librairie chalk pour les couleurs
 
-const services = [
-  { name: "auth-service", cmd: "npm", args: ["run", "dev"], cwd: "./auth-service" },
-  { name: "client-service", cmd: "npm", args: ["run", "dev"], cwd: "./client-service" },
-  { name: "dashboard-service", cmd: "npm", args: ["run", "dev"], cwd: "./dashboard-service" },
-  { name: "inspectionvehicle-service", cmd: "npm", args: ["run", "dev"], cwd: "./inspectionvehicle-service" },
-  { name: "reservation-service", cmd: "npm", args: ["run", "dev"], cwd: "./Reservation-Service" },
-  { name: "succursale-service", cmd: "npm", args: ["run", "dev"], cwd: "./succursale-service" },
-  { name: "taxe-service", cmd: "npm", args: ["run", "dev"], cwd: "./taxe-service" },
-  { name: "vehicule-service", cmd: "npm", args: ["run", "dev"], cwd: "./vehicule-service" },
-  { name: "api-gateway", cmd: "npm", args: ["run", "dev"], cwd: "./api-gateway" },
-  { name: "client-frontend", cmd: "npm", args: ["run", "dev"], cwd: "./client-frontend" },
-  // { name: "admin-frontend", cmd: "npm", args: ["run", "dev"], cwd: "./admin-frontend" },
+// 1. Définir les styles de couleur pour les logs
+const styles = [
+    chalk.blue,
+    chalk.green,
+    chalk.yellow,
+    chalk.magenta,
+    chalk.cyan,
+    chalk.white,
+    chalk.red,
+    chalk.gray,
 ];
 
-services.forEach(({ name, cmd, args, cwd }) => {
-  const proc = spawn(cmd, args, { cwd, shell: true });
+// 2. Définir la liste de vos services
+// Pour chaque service, on indique son nom, la commande pour le lancer (souvent 'npm start'),
+// et son répertoire de travail (cwd).
+// NOTE : Sur Windows, il faut utiliser 'npm.cmd' au lieu de 'npm' avec spawn.
+const cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-  proc.stdout.on("data", (data) => {
-    process.stdout.write(`[${name}] ${data}`);
-  });
+const services = [
+    { name: 'api-gateway', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'api-gateway') },
+    { name: 'auth-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'auth-service') },
+    { name: 'client-frontend', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'client-frontend') },
+    { name: 'client-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'client-service') },
+    { name: 'dashboard-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'dashboard-service') },
+    { name: 'inspectionvehicule-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'inspectionvehicule-service') },
+    { name: 'Reservation-Service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'Reservation-Service') },
+    { name: 'succursale-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'succursale-service') },
+    { name: 'taxe-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'taxe-service') },
+    { name: 'utilisateur-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'utilisateur-service') },
+    { name: 'vehicule-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'vehicule-service') },
+    // Ajoutez ici d'autres services si nécessaire
+];
 
-  proc.stderr.on("data", (data) => {
-    process.stderr.write(`[${name} ERROR] ${data}`);
-  });
+console.log('Starting all services...');
 
-  proc.on("close", (code) => {
-    console.log(`[${name}] exited with code ${code}`);
-  });
+// 3. Votre code pour lancer les processus (il est déjà parfait !)
+services.forEach(({ name, cmd, args, cwd }, index) => {
+    const color = styles[index % styles.length];
+    const prefix = color(`[${name}]`);
+
+    const proc = spawn(cmd, args, { cwd });
+
+    proc.stdout.on("data", (data) => {
+        process.stdout.write(`${prefix} ${data}`);
+    });
+
+    proc.stderr.on("data", (data) => {
+        process.stderr.write(`${prefix} ERROR: ${data}`);
+    });
+
+    proc.on("close", (code) => {
+        console.log(`${prefix} exited with code ${code}`);
+    });
 });

@@ -1,4 +1,3 @@
-// src/components/TaxesTable.jsx (Version Finale Simplifiée)
 
 import { Edit, Trash2 } from 'lucide-react';
 

@@ -1,4 +1,4 @@
-// src/pages/VehiclesPage.jsx (Version Finale)
+// src/pages/VehiclesPage.jsx (Version Finale Corrigée)
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -21,6 +21,7 @@ const initialSearchCriteria = {
 
 const VEHICLES_PER_PAGE = 9;
 
+// Le composant RefinePanel reste inchangé, il fonctionne déjà bien.
 const RefinePanel = ({ filters, setFilters, filterOptions, resetFilters }) => {
   const handleCheckboxChange = (e, filterKey) => {
     const { value, checked } = e.target;
@@ -61,33 +62,74 @@ const VehiclesPage = () => {
     setIsSearching(true);
     setCurrentPage(page);
     try {
-      const searchParams = { limit: VEHICLES_PER_PAGE, offset: (page - 1) * VEHICLES_PER_PAGE };
-      if (searchCriteria.idsuccursale) searchParams.idsuccursale = searchCriteria.idsuccursale;
-      else {
+      // --- DÉBUT DE LA SECTION CORRIGÉE ---
+      const searchParams = { 
+        limit: VEHICLES_PER_PAGE, 
+        offset: (page - 1) * VEHICLES_PER_PAGE 
+      };
+
+      // 1. Ajout des critères de recherche principaux
+      if (searchCriteria.idsuccursale) {
+        searchParams.idsuccursale = searchCriteria.idsuccursale;
+      } else {
         if (searchCriteria.country) searchParams.pays = searchCriteria.country;
         if (searchCriteria.province) searchParams.province = searchCriteria.province;
         if (searchCriteria.city) searchParams.ville = searchCriteria.city;
       }
-      if (searchCriteria.make && searchCriteria.make !== 'any') searchParams.marque = searchCriteria.make;
+      if (searchCriteria.make && searchCriteria.make !== 'any') {
+        searchParams.marque = searchCriteria.make;
+      }
       if (searchCriteria.dates.from && searchCriteria.dates.to) {
         searchParams.datedebut = format(new Date(searchCriteria.dates.from), 'yyyy-MM-dd');
         searchParams.datefin = format(new Date(searchCriteria.dates.to), 'yyyy-MM-dd');
       }
-      if (refineFilters.categories.length > 0) searchParams.categories = refineFilters.categories.join(',');
-      if (refineFilters.transmission !== 'any') searchParams.transmission = refineFilters.transmission;
-      if (refineFilters.energie !== 'any') searchParams.energie = refineFilters.energie;
-      if (refineFilters.typeEntrainement !== 'any') searchParams.typeEntrainement = refineFilters.typeEntrainement;
-      if (refineFilters.sieges !== 'any') searchParams.sieges = refineFilters.sieges;
-      if (refineFilters.prixMax < 500) searchParams.prixMax = refineFilters.prixMax;
+
+      // 2. Ajout des filtres d'affinage (ICI LA CORRECTION COMPLÈTE)
+      if (refineFilters.categories.length > 0) {
+        searchParams.categories = refineFilters.categories.join(',');
+      }
+      if (refineFilters.transmission !== 'any') {
+        searchParams.transmission = refineFilters.transmission;
+      }
+      if (refineFilters.energie !== 'any') {
+        searchParams.energie = refineFilters.energie;
+      }
+      if (refineFilters.typeEntrainement !== 'any') {
+        searchParams.typeEntrainement = refineFilters.typeEntrainement;
+      }
+      if (refineFilters.sieges !== 'any') {
+        searchParams.sieges = refineFilters.sieges;
+      }
+      // On envoie le prix seulement s'il est inférieur au maximum
+      if (refineFilters.prixMax < 500) {
+        searchParams.prixMax = refineFilters.prixMax;
+      }
+      // --- FIN DE LA SECTION CORRIGÉE ---
+
       const response = await vehicleService.searchVehicles(searchParams);
       setVehicles(response.vehicles || []);
       setTotalVehicles(response.total || 0);
-    } catch (error) { toast.error("La recherche a échoué: " + (error.message || "Erreur inconnue")); setVehicles([]); setTotalVehicles(0); }
-    finally { setIsSearching(false); setIsLoading(false); }
+    } catch (error) { 
+      toast.error("La recherche a échoué: " + (error.message || "Erreur inconnue")); 
+      setVehicles([]); 
+      setTotalVehicles(0); 
+    } finally { 
+      setIsSearching(false); 
+      setIsLoading(false); 
+    }
   }, [searchCriteria, refineFilters]);
 
-  useEffect(() => { vehicleService.getFilterOptions().then(setFilterOptions); }, []);
-  useEffect(() => { setIsLoading(true); const handler = setTimeout(() => { executeSearch(1); }, 300); return () => clearTimeout(handler); }, [searchCriteria, refineFilters, executeSearch]);
+  useEffect(() => { 
+    vehicleService.getFilterOptions().then(setFilterOptions); 
+  }, []);
+
+  useEffect(() => { 
+    setIsLoading(true); 
+    const handler = setTimeout(() => { 
+      executeSearch(1); 
+    }, 300);
+    return () => clearTimeout(handler); 
+  }, [searchCriteria, refineFilters, executeSearch]);
 
   const sortedVehicles = useMemo(() => {
     const sorted = [...vehicles];

@@ -199,6 +199,7 @@ exports.getVehiculeById = asyncHandler(async (req, res) => {
 
 
 // --- FONCTION DE RECHERCHE (AVEC AGRÉGATION) ---
+// --- FONCTION DE RECHERCHE PRINCIPALE (AVEC AGRÉGATION) ---
 exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
     const { 
         idsuccursale, pays, province, ville: queryVille, location, marque, datedebut, datefin,
@@ -209,6 +210,7 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
     const cityToSearch = queryVille || location;
     let succursaleIdsToFilter = [];
 
+    // 1. Déterminer les ID de succursales
     if (idsuccursale) {
         succursaleIdsToFilter.push(idsuccursale);
     } else if (pays || province || cityToSearch) {
@@ -217,28 +219,59 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
             succursaleIdsToFilter = response.data;
             if (succursaleIdsToFilter.length === 0) return res.json({ vehicles: [], total: 0 });
         } catch (error) {
+            console.error("Erreur d'appel au service de succursales:", error.message);
             return res.status(502).json({ message: "Le service de succursales est indisponible." });
         }
     }
 
+    // 2. Construire la clause WHERE
     const vehicleWhereClause = {};
-    if (marque && marque !== 'any') vehicleWhereClause.marque = marque;
+    
+    // Filtres principaux
+    if (marque && marque !== 'any') vehicleWhereClause.marque = { [Op.iLike]: marque };
     if (succursaleIdsToFilter.length > 0) {
         vehicleWhereClause.succursaleidsuccursale = { [Op.in]: succursaleIdsToFilter };
     } else if (pays || province || cityToSearch) {
         return res.json({ vehicles: [], total: 0 });
     }
-    // ... autres filtres
-    if (categories) vehicleWhereClause.categorie = { [Op.in]: categories.split(',') };
-    if (transmission && transmission !== 'any') vehicleWhereClause.transmission = transmission;
 
+    // ✅ CORRECTION FINALE : Utilisation de [Op.iLike] pour ignorer la casse
+    // Filtres d'affinage
+    if (categories) {
+      // Pour les catégories (checkboxes), Op.in est ok car les valeurs sont contrôlées.
+      vehicleWhereClause.categorie = { [Op.in]: categories.split(',') };
+    }
+    if (transmission && transmission !== 'any') {
+      // On rend la recherche insensible à la casse pour plus de robustesse
+      vehicleWhereClause.transmission = { [Op.iLike]: transmission };
+    }
+    if (energie && energie !== 'any') {
+      vehicleWhereClause.energie = { [Op.iLike]: energie };
+    }
+    if (typeEntrainement && typeEntrainement !== 'any') {
+      // Le nom de la colonne est bien 'typeentrainement'
+      vehicleWhereClause.typeentrainement = { [Op.iLike]: typeEntrainement };
+    }
+    
+    // Pour les nombres, on garde l'égalité stricte
+    if (sieges && sieges !== 'any') {
+      vehicleWhereClause.sieges = Number(sieges);
+    }
+    if (prixMax) {
+      vehicleWhereClause.tarifjournalier = { [Op.lte]: Number(prixMax) };
+    }
+
+    // 3. Trouver les véhicules
     const potentialVehicles = await Vehicule.findAll({
         where: vehicleWhereClause,
         include: [{ model: VehiculeImage, as: 'VehiculeImages' }]
     });
 
-    if (potentialVehicles.length === 0) return res.json({ vehicles: [], total: 0 });
+    if (potentialVehicles.length === 0) {
+        return res.json({ vehicles: [], total: 0 });
+    }
 
+    // 4. Vérifier la disponibilité
     let availableVehicles = potentialVehicles;
     if (datedebut && datefin) {
         try {
@@ -249,11 +282,12 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
             const availableVehicleIds = new Set(response.data.disponibles);
             availableVehicles = potentialVehicles.filter(v => availableVehicleIds.has(v.idvehicule));
         } catch (error) {
+            console.error("Erreur d'appel au service de réservations:", error.message);
             return res.status(502).json({ message: "Le service de réservations est indisponible." });
         }
     }
     
-    // AGRÉGATION DES DONNÉES DE SUCCURSALE
+    // 5. Enrichir avec les données des succursales
     let enrichedVehicles = [];
     if (availableVehicles.length > 0) {
         try {
@@ -262,7 +296,6 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
                 params: { ids: allSuccursaleIds.join(',') }
             });
             const succursaleMap = new Map(succursalesResponse.data.map(s => [s.idsuccursale, s]));
-            
             enrichedVehicles = availableVehicles.map(vehicle => {
                 const vehicleJson = vehicle.toJSON();
                 vehicleJson.Succursale = succursaleMap.get(vehicle.succursaleidsuccursale) || null;
@@ -274,6 +307,7 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
         }
     }
 
+    // 6. Pagination et envoi de la réponse
     const total = enrichedVehicles.length;
     const paginatedVehicles = enrichedVehicles.slice(Number(offset), Number(offset) + Number(limit));
 

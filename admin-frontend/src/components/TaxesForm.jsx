@@ -1,4 +1,3 @@
-// src/components/TaxesForm.jsx (Version Finale avec Formatage des Données)
 
 import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
