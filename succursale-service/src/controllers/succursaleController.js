@@ -1,26 +1,35 @@
-// Fichier : src/controllers/succursaleController.js (Version Finale Corrigée)
+/**
+ * Contrôleur Succursale
+ * ---------------------
+ * Gère toutes les opérations liées aux succursales : CRUD, recherche, statistiques, et listes structurées pour les filtres.
+ * Utilise Sequelize pour l'accès aux données et express-async-handler pour la gestion des erreurs asynchrones.
+ */
 
 const Succursale = require("../models/succursale");
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize"); 
 
-// Récupérer toutes les succursales avec des filtres (y compris par liste d'IDs)
+/**
+ * Récupère toutes les succursales avec filtres (par IDs ou critères classiques).
+ * @route GET /succursales
+ * @param {Object} req - Requête Express contenant les filtres en query (ids, ville, province, pays, etc.).
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des succursales correspondant aux critères.
+ */
 exports.getSuccursales = asyncHandler(async (req, res) => {
     const {
-      // ✅ ON AJOUTE LA LECTURE DU PARAMÈTRE 'ids'
-      ids,
-      ville, province, pays, nomsuccursale, codeagence, codepostal,
+      ids, ville, province, pays, nomsuccursale, codeagence, codepostal,
       limit = 10, offset = 0,
     } = req.query;
 
     const where = {};
 
-    // ✅ SI DES IDs SONT FOURNIS, ON FILTRE PAR CETTE LISTE ET ON IGNORE LES AUTRES FILTRES
+    // Si des IDs sont fournis, on filtre uniquement par cette liste
     if (ids) {
-        // On transforme la chaîne "1,2,3" en un tableau de nombres [1, 2, 3]
+        // Convertit "1,2,3" en [1,2,3]
         where.idsuccursale = { [Op.in]: ids.split(',').map(Number) };
     } else {
-        // Sinon, on applique les filtres habituels
+        // Sinon, on applique les filtres classiques
         if (ville) where.ville = { [Op.iLike]: `%${ville}%` };
         if (province) where.province = province;
         if (pays) where.pays = pays;
@@ -29,16 +38,22 @@ exports.getSuccursales = asyncHandler(async (req, res) => {
         if (codepostal) where.codepostal = codepostal;
     }
 
+    // Si on filtre par ID, on retourne tout sans pagination
     const succursales = await Succursale.findAll({
       where,
-      // Si on filtre par ID, on ne veut pas de pagination, on les veut toutes.
       limit: ids ? undefined : Number(limit),
       offset: ids ? undefined : Number(offset),
     });
     res.json(succursales);
 });
 
-// Récupérer une succursale par son ID
+/**
+ * Récupère une succursale par son ID.
+ * @route GET /succursales/:id
+ * @param {Object} req - Requête Express contenant l'ID en paramètre.
+ * @param {Object} res - Réponse Express.
+ * @returns {Object} Succursale trouvée ou erreur 404.
+ */
 exports.getSuccursaleById = asyncHandler(async (req, res) => {
   const succursale = await Succursale.findByPk(req.params.id);
   if (!succursale) {
@@ -48,7 +63,13 @@ exports.getSuccursaleById = asyncHandler(async (req, res) => {
   res.json(succursale);
 });
 
-// Créer une nouvelle succursale
+/**
+ * Crée une nouvelle succursale avec génération automatique du code agence.
+ * @route POST /succursales
+ * @param {Object} req - Requête Express contenant les données de la succursale.
+ * @param {Object} res - Réponse Express.
+ * @returns {Object} Succursale créée.
+ */
 exports.createSuccursale = asyncHandler(async (req, res) => {
   const maxId = await Succursale.max('idsuccursale') || 0;
   req.body.codeagence = `AG-${String(maxId + 1).padStart(3, '0')}`;
@@ -56,7 +77,13 @@ exports.createSuccursale = asyncHandler(async (req, res) => {
   res.status(201).json(nouvelleSuccursale);
 });
 
-// Mettre à jour les champs de la succursale
+/**
+ * Met à jour une succursale existante.
+ * @route PUT /succursales/:id
+ * @param {Object} req - Requête Express contenant l'ID et les nouvelles données.
+ * @param {Object} res - Réponse Express.
+ * @returns {Object} Succursale mise à jour.
+ */
 exports.updateSuccursale = asyncHandler(async (req, res) => {
   const succursale = await Succursale.findByPk(req.params.id);
   if (!succursale) {
@@ -67,23 +94,40 @@ exports.updateSuccursale = asyncHandler(async (req, res) => {
   res.json(succursale);
 });
 
-// Récupérer le nombre total de succursales
+/**
+ * Récupère le nombre total de succursales.
+ * @route GET /succursales/count
+ * @param {Object} req - Requête Express.
+ * @param {Object} res - Réponse Express.
+ * @returns {Object} Objet { count }.
+ */
 exports.getSuccursaleCount = asyncHandler(async (req, res) => {
   const count = await Succursale.count();
   res.json({ count });
 });
 
-// Générer le prochain code agence
+/**
+ * Génère le prochain code agence (pour formulaire de création).
+ * @route GET /succursales/next-code
+ * @param {Object} req - Requête Express.
+ * @param {Object} res - Réponse Express.
+ * @returns {Object} Objet { codeagence }.
+ */
 exports.getNextCode = asyncHandler(async (req, res) => {
   const maxId = await Succursale.max('idsuccursale') || 0;
   const codeagence = `AG-${String(maxId + 1).padStart(3, '0')}`;
   res.json({ codeagence });
 });
 
-// GET /succursales/all-list : retourne les noms, adresses et ids pour les menus
+/**
+ * Récupère la liste des succursales (ID, nom, adresse, ville, code postal) pour les menus déroulants.
+ * @route GET /succursales/all-list
+ * @param {Object} req - Requête Express.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste simplifiée des succursales.
+ */
 exports.getSuccursaleNamesList = asyncHandler(async (req, res) => {
   const succursales = await Succursale.findAll({
-    // ✅ ON INCLUT L'ADRESSE COMPLÈTE
     attributes: ['idsuccursale', 'nomsuccursale', 'adresse1', 'ville', 'codepostal'],
     order: [['nomsuccursale', 'ASC']]
   });
@@ -92,7 +136,13 @@ exports.getSuccursaleNamesList = asyncHandler(async (req, res) => {
 
 // --- FONCTIONS POUR LA RECHERCHE DE LIEU STRUCTURÉE ---
 
-// 1. Récupère la liste unique des pays
+/**
+ * Récupère la liste unique des pays où il existe des succursales.
+ * @route GET /succursales/distinct-countries
+ * @param {Object} req - Requête Express.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des pays.
+ */
 exports.getDistinctCountries = asyncHandler(async (req, res) => {
     const countries = await Succursale.findAll({
         attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('pays')), 'country']],
@@ -101,7 +151,13 @@ exports.getDistinctCountries = asyncHandler(async (req, res) => {
     res.json(countries.map(c => c.country));
 });
 
-// 2. Récupère la liste unique des provinces pour un pays donné
+/**
+ * Récupère la liste unique des provinces pour un pays donné.
+ * @route GET /succursales/distinct-provinces
+ * @param {Object} req - Requête Express, query : country.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des provinces.
+ */
 exports.getDistinctProvinces = asyncHandler(async (req, res) => {
     const { country } = req.query;
     if (!country) return res.status(400).json({ message: "Le paramètre 'country' est requis." });
@@ -113,7 +169,13 @@ exports.getDistinctProvinces = asyncHandler(async (req, res) => {
     res.json(provinces.map(p => p.province));
 });
 
-// 3. Récupère la liste unique des villes pour une combinaison pays/province
+/**
+ * Récupère la liste unique des villes pour une combinaison pays/province.
+ * @route GET /succursales/distinct-cities
+ * @param {Object} req - Requête Express, query : country, province.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des villes.
+ */
 exports.getDistinctCities = asyncHandler(async (req, res) => {
     const { country, province } = req.query;
     if (!country || !province) return res.status(400).json({ message: "Les paramètres 'country' et 'province' sont requis." });
@@ -125,7 +187,13 @@ exports.getDistinctCities = asyncHandler(async (req, res) => {
     res.json(cities.map(c => c.city));
 });
 
-// Cherche des IDs de succursales avec des critères stricts.
+/**
+ * Recherche les IDs de succursales correspondant à des critères stricts (pays, province, ville).
+ * @route GET /succursales/find-ids
+ * @param {Object} req - Requête Express, query : pays, province, ville.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des IDs de succursales.
+ */
 exports.findSuccursaleIds = asyncHandler(async (req, res) => {
     const { pays, province, ville } = req.query;
     const where = {};
@@ -137,7 +205,13 @@ exports.findSuccursaleIds = asyncHandler(async (req, res) => {
     res.json(succursales.map(s => s.idsuccursale));
 });
 
-// 4. Récupère la liste des succursales (ID et nom) pour une ville donnée
+/**
+ * Récupère la liste des succursales (ID et nom) pour une ville donnée.
+ * @route GET /succursales/by-location
+ * @param {Object} req - Requête Express, query : country, province, city.
+ * @param {Object} res - Réponse Express.
+ * @returns {Array} Liste des succursales pour la localisation donnée.
+ */
 exports.getSuccursalesByLocation = asyncHandler(async (req, res) => {
     const { country, province, city } = req.query;
     if (!country || !province || !city) return res.status(400).json({ message: "Les paramètres 'country', 'province' et 'city' sont requis." });

@@ -1,3 +1,15 @@
+/**
+ * Contrôleur Véhicule
+ * -------------------
+ * Gère toutes les opérations liées aux véhicules : CRUD, recherche, statistiques, agrégation avec images et succursales.
+ * 
+ * Dépendances :
+ * - Modèles Sequelize (Vehicule, VehiculeImage)
+ * - Axios pour les appels inter-services (succursales, réservations)
+ * 
+ * Toutes les fonctions sont asynchrones et utilisent express-async-handler pour la gestion des erreurs.
+ */
+
 // Fichier : src/controllers/vehiculeController.js
 
 const { Op, Sequelize } = require("sequelize");
@@ -7,11 +19,20 @@ const VehiculeImage = require('../models/vehicule_image');
 const sequelize = require('../config/database');
 const axios = require("axios");
 
-// Définir l'URL de la Gateway API. Idéalement, cela vient de vos variables d'environnement.
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3000';
 
-// --- Fonctions CRUD ---
-
+/**
+ * Liste les véhicules avec filtres, pagination et images associées.
+ * @route GET /vehicules
+ * @query {string} search - Recherche globale (immatriculation, marque, modèle)
+ * @query {string} marque - Filtre par marque
+ * @query {string} categorie - Filtre par catégorie
+ * @query {string} statut - Filtre par statut
+ * @query {string} succursaleId - Filtre par succursale
+ * @query {number} limit - Nombre de résultats par page
+ * @query {number} offset - Décalage pour la pagination
+ * @returns {Object} { total, vehicules }
+ */
 exports.getVehicules = asyncHandler(async (req, res) => {
     const { search, marque, categorie, statut, succursaleId, limit = 10, offset = 0 } = req.query;
     let where = {};
@@ -24,12 +45,26 @@ exports.getVehicules = asyncHandler(async (req, res) => {
     res.json({ total: count, vehicules: rows });
 });
 
+/**
+ * Récupère un véhicule par son ID, avec images associées.
+ * @route GET /vehicules/:id
+ * @param {number} id - ID du véhicule
+ * @returns {Object} Véhicule trouvé ou 404
+ */
 exports.getVehiculeById = asyncHandler(async (req, res) => {
   const vehicule = await Vehicule.findByPk(req.params.id, { include: [{ model: VehiculeImage, as: 'VehiculeImages' }] });
   if (!vehicule) { res.status(404); throw new Error("Vehicule non trouvé"); }
   res.json(vehicule);
 });
 
+/**
+ * Crée un nouveau véhicule et ses images.
+ * @route POST /vehicules
+ * @body {Object} vehiculeData - Données du véhicule
+ * @body {Array} images - URLs des images
+ * @returns {Object} Véhicule créé
+ * @throws {400} Erreur de validation
+ */
 exports.createVehicule = asyncHandler(async (req, res) => {
     const { images, ...vehiculeData } = req.body;
     const transaction = await sequelize.transaction();
@@ -53,6 +88,15 @@ exports.createVehicule = asyncHandler(async (req, res) => {
     }
 });
 
+/**
+ * Met à jour un véhicule existant et ses images.
+ * @route PUT /vehicules/:id
+ * @param {number} id - ID du véhicule
+ * @body {Object} vehiculeData - Données à mettre à jour
+ * @body {Array} images - URLs des images
+ * @returns {Object} Véhicule mis à jour
+ * @throws {404} Véhicule non trouvé
+ */
 exports.updateVehicule = asyncHandler(async (req, res) => {
     const { images, ...vehiculeData } = req.body;
     const { id } = req.params;
@@ -86,12 +130,21 @@ exports.updateVehicule = asyncHandler(async (req, res) => {
     }
 });
 
-// --- Fonctions de Statistiques ---
+/**
+ * Retourne le nombre total de véhicules.
+ * @route GET /vehicules/count
+ * @returns {Object} { count }
+ */
 exports.getVehiculeCount = asyncHandler(async (req, res) => { 
   const count = await Vehicule.count(); 
   res.json({ count }); 
 });
 
+/**
+ * Statistiques de véhicules par succursale.
+ * @route GET /vehicules/stats/by-succursale
+ * @returns {Array} Statistiques groupées par succursale
+ */
 exports.getVehiculeStatsBySuccursale = asyncHandler(async (req, res) => { 
   const stats = await Vehicule.findAll({ 
     attributes: ['succursaleidsuccursale', [Sequelize.fn('COUNT', 'idvehicule'), 'vehiculeCount']], 
@@ -100,6 +153,11 @@ exports.getVehiculeStatsBySuccursale = asyncHandler(async (req, res) => {
   res.json(stats); 
 });
 
+/**
+ * Statistiques générales sur les véhicules (total, disponibles, etc.).
+ * @route GET /vehicules/stats/general
+ * @returns {Object} Statistiques globales
+ */
 exports.getVehiculeGeneralStats = asyncHandler(async (req, res) => { 
   const [total, disponibles, en_location, en_maintenance, hors_service] = await Promise.all([ 
     Vehicule.count(), 
@@ -111,7 +169,11 @@ exports.getVehiculeGeneralStats = asyncHandler(async (req, res) => {
   res.json({ total, disponibles, en_location, en_maintenance, hors_service }); 
 });
 
-// --- FONCTION POUR L'ADMINISTRATION ---
+/**
+ * Retourne les options de filtres pour l'administration.
+ * @route GET /vehicules/filter-options
+ * @returns {Object} Listes distinctes pour chaque filtre
+ */
 exports.getVehiculeFilterOptions = asyncHandler(async (req, res) => { 
   const [marques, categories, energies, transmissions] = await Promise.all([ 
     Vehicule.findAll({ attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('marque')), 'marque']], raw: true, order: ['marque'] }), 
@@ -127,7 +189,11 @@ exports.getVehiculeFilterOptions = asyncHandler(async (req, res) => {
   }); 
 });
 
-// --- FONCTION POUR LE SITE PUBLIC ---
+/**
+ * Retourne les options de filtres pour le site public.
+ * @route GET /vehicules/public-filter-options
+ * @returns {Object} Listes distinctes pour chaque filtre public
+ */
 exports.getPublicFilterOptions = asyncHandler(async (req, res) => {
     const [marques, categories, energies, transmissions, sieges, typesentrainement] = await Promise.all([ 
         Vehicule.findAll({ attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('marque')), 'marque']], raw: true, order: [['marque', 'ASC']] }), 
@@ -158,6 +224,11 @@ exports.getPublicFilterOptions = asyncHandler(async (req, res) => {
     }); 
 });
 
+/**
+ * Statistiques de véhicules par marque (top 5).
+ * @route GET /vehicules/stats/by-marque
+ * @returns {Array} Statistiques groupées par marque
+ */
 exports.getVehiculeStatsByMarque = asyncHandler(async (req, res) => { 
   const stats = await Vehicule.findAll({ 
     attributes: ['marque', [Sequelize.fn('COUNT', 'idvehicule'), 'count']], 
@@ -168,38 +239,13 @@ exports.getVehiculeStatsByMarque = asyncHandler(async (req, res) => {
   res.json(stats); 
 });
 
-// --- FONCTION DE RECHERCHE AVEC AGRÉGATION ---
-// --- FONCTION POUR OBTENIR UN VÉHICULE PAR ID (AVEC AGRÉGATION) ---
-exports.getVehiculeById = asyncHandler(async (req, res) => {
-  // 1. On récupère le véhicule depuis notre propre DB
-  const vehicle = await Vehicule.findByPk(req.params.id, {
-    include: [{ model: VehiculeImage, as: 'VehiculeImages' }]
-  });
-
-  if (!vehicle) {
-    res.status(404);
-    throw new Error("Vehicule non trouvé");
-  }
-
-  // 2. On fait un appel API via la Gateway pour obtenir les détails de sa succursale
-  try {
-    const succursaleResponse = await axios.get(`${GATEWAY_URL}/succursales/${vehicle.succursaleidsuccursale}`);
-    
-    // 3. On "enrichit" l'objet véhicule avec les données reçues
-    const vehicleJson = vehicle.toJSON();
-    vehicleJson.Succursale = succursaleResponse.data;
-    
-    res.json(vehicleJson);
-  } catch (error) {
-    console.error("Erreur d'agrégation pour getVehiculeById:", error.message);
-    // En cas d'erreur, on renvoie le véhicule sans les infos de succursale
-    res.json(vehicle);
-  }
-});
-
-
-// --- FONCTION DE RECHERCHE (AVEC AGRÉGATION) ---
-// --- FONCTION DE RECHERCHE PRINCIPALE (AVEC AGRÉGATION) ---
+/**
+ * Recherche de véhicules disponibles avec agrégation (images, succursales).
+ * @route GET /vehicules/search
+ * @query {string} marque, categorie, transmission, etc.
+ * @query {string} datedebut, datefin - Période de location
+ * @returns {Object} { vehicles, total }
+ */
 exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
     const { 
         idsuccursale, pays, province, ville: queryVille, location, marque, datedebut, datefin,
@@ -319,7 +365,11 @@ exports.searchAvailableVehicles = asyncHandler(async (req, res) => {
 
 
 
-// --- OBTENIR LES VÉHICULES EN VEDETTE (AVEC AGRÉGATION) ---
+/**
+ * Récupère les véhicules en vedette (populaires), enrichis avec images et succursales.
+ * @route GET /vehicules/featured
+ * @returns {Array} Liste des véhicules en vedette
+ */
 exports.getFeaturedVehicles = asyncHandler(async (req, res) => {
   try {
     const topIdsResponse = await axios.get(`${GATEWAY_URL}/reservations/stats/top-ids?limit=3`);

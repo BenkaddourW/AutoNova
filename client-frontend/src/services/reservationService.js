@@ -23,3 +23,65 @@ export const checkAvailability = async (data) => {
         handleError(error);
     }
 };
+
+export const getMyBookings = async () => {
+  try {
+    // 1. On récupère le token depuis le localStorage.
+    // C'est la même logique que vous utiliseriez pour d'autres appels authentifiés.
+    const token = localStorage.getItem('accessToken');
+
+    // 2. On vérifie si le token existe.
+    if (!token) {
+      // Si l'utilisateur n'est pas connecté, il ne peut pas avoir de réservations.
+      // On peut soit renvoyer un tableau vide, soit lancer une erreur.
+      throw new Error("Token d'authentification manquant.");
+    }
+
+    // 3. On fait l'appel API en ajoutant manuellement l'en-tête 'Authorization'.
+    // Cela n'affecte aucune autre fonction de ce fichier.
+    const response = await apiClient.get('/reservations/my-bookings', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    // 4. On retourne les données.
+    return response.data;
+
+  } catch (error) {
+    // On garde votre gestion d'erreur.
+    console.error("Erreur API lors de la récupération de vos réservations:", error.message);
+    // On propage l'erreur pour que le composant puisse l'afficher.
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Récupère les détails d'une réservation spécifique en utilisant axios.
+ * @param {string|number} bookingId - L'ID de la réservation à récupérer.
+ */
+export const getBookingDetails = async (bookingId) => {
+  try {
+    // 1. On récupère le token du localStorage
+    const token = localStorage.getItem('accessToken');
+
+    // 2. On vérifie sa présence
+    if (!token) {
+      throw new Error("Token d'authentification manquant pour récupérer les détails.");
+    }
+
+    // 3. On fait l'appel avec axios (apiClient) en passant l'en-tête d'autorisation
+    const response = await apiClient.get(`/reservations/my-bookings/${bookingId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    // 4. On retourne les données de la réponse
+    return response.data;
+
+  } catch (error) {
+    // On utilise votre gestionnaire d'erreur existant
+    handleError(error);
+  }
+};

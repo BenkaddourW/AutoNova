@@ -1,3 +1,13 @@
+/**
+ * Modèle Reservation
+ * ------------------
+ * Définit la structure de la table "reservation" dans la base de données.
+ * 
+ * Champs principaux : idreservation, numeroreservation, dates, montants, statut, FK client/succursale/véhicule.
+ * 
+ * Hooks : Génère automatiquement un numéro de réservation unique avant la création.
+ */
+
 module.exports = (sequelize, DataTypes) => {
   const Reservation = sequelize.define(
     "Reservation",
@@ -5,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
       idreservation: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
+        autoIncrement: true, // Identifiant unique auto-incrémenté
       },
       numeroreservation: {
         type: DataTypes.STRING,
@@ -42,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
     statut: {
       type: DataTypes.STRING,
       allowNull: false,
-      validate: { isIn: [['Confirmée', 'Terminée', 'Active', 'Annulée']] }
+      validate: { isIn: [['En attente','Confirmée', 'Terminée', 'Active', 'Annulée']] }
     },
     idclient: {
       type: DataTypes.INTEGER,

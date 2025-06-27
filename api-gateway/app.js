@@ -122,6 +122,38 @@ app.use("/utilisateurs", (req, res, next) => {
   });
 });
 
+// Route pour le service paiement
+app.use("/paiements", (req, res, next) => {
+  getServiceUrl("paiement-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service paiement-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/paiements" + path,
+      proxyTimeout: 30000,
+    });
+    proxy(req, res, next);
+  });
+});
+
+// Route pour le service contrat protégée par JWT
+app.use("/contrats", authenticateJWT, (req, res, next) => {
+  getServiceUrl("contrat-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service contrat-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/contrats" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
+
 
 
 app.listen(PORT, () => {

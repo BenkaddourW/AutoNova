@@ -94,7 +94,7 @@ const HeroSearchForm = () => {
           <label htmlFor="pickup-location" className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Lieu de prise en charge</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <input id="pickup-location" type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input-style w-full pl-10 h-12" placeholder="Ville, aéroport, adresse..."/>
+            <input id="pickup-location" type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input-style w-full pl-10 h-12" placeholder="Ville"/>
           </div>
         </div>
         <div>

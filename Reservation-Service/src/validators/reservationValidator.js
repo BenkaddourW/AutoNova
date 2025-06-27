@@ -16,7 +16,7 @@ const allowedFields = [
   'idpaiement'
 ];
 
-const statutValues = ['Confirmée', 'Terminée', 'Active', 'Annulée'];
+const statutValues = ['En attente','Confirmée', 'Terminée', 'Active', 'Annulée'];
 
 const baseRules = [
   body('numeroreservation')

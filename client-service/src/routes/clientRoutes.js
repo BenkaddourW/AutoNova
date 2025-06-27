@@ -1,6 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const clientController = require("../controllers/clientController");
+      
+
+
+
+// Récupérer un client par idutilisateur (employé/admin uniquement)
+router.get('/clients/by-user/:idUtilisateur', clientController.getClientByUserId);
 
 // Créer un profil client (complétion initiale)
 router.post("/clients", clientController.createClient);

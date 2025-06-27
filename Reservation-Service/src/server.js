@@ -23,7 +23,7 @@ app.use(helmet());
 app.use(morgan("dev"));
 
 app.use("/reservations", reservationRoutes);
-app.use("/api/reservations", reservationRoutes);
+// app.use("/api/reservations", reservationRoutes);
 
 app.use(errorHandler);
 

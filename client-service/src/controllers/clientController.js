@@ -270,3 +270,37 @@ exports.getMyClientInfo = async (req, res) => {
     });
   }
 };
+
+
+/**
+ * Récupère un profil client en se basant sur l'ID de l'utilisateur associé.
+ * C'est un endpoint de service utilisé par d'autres microservices.
+ * @param {object} req - L'objet de la requête, contenant req.params.idUtilisateur.
+ * @param {object} res - L'objet de la réponse.
+ */
+exports.getClientByUserId = async (req, res) => {
+  try {
+    // 1. On récupère l'idutilisateur depuis les paramètres de l'URL
+    const { idUtilisateur } = req.params;
+
+    // 2. On cherche le client dans la base de données avec cet idutilisateur
+    const client = await Client.findOne({
+      where: { idutilisateur: idUtilisateur }
+    });
+
+    // 3. Si on ne trouve rien, on renvoie une erreur 404
+    if (!client) {
+      return res.status(404).json({ message: "Aucun profil client trouvé pour cet utilisateur." });
+    }
+
+    // 4. Si on trouve le client, on renvoie ses informations
+    res.json(client);
+
+  } catch (err) {
+    // En cas d'erreur serveur (ex: DB inaccessible)
+    res.status(500).json({
+      message: "Erreur lors de la récupération du profil client.",
+      error: err.message,
+    });
+  }
+};

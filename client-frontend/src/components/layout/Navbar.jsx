@@ -89,7 +89,7 @@ const Navbar = () => {
                       </Menu.Item>
                       <Menu.Item>
                         {({ active }) => (
-                          <NavLink to="/compte"
+                          <NavLink to="/compte/reservations" // ✅ CORRECTION 1
                             className={`${active ? 'bg-sky-500 text-white' : 'text-slate-900 dark:text-slate-100'} group flex items-center rounded-md px-2 py-2 text-sm`}>
                             <BookMarked className="mr-2 h-5 w-5" /> Mes Réservations
                           </NavLink>
@@ -100,8 +100,8 @@ const Navbar = () => {
                       <Menu.Item>
                         {({ active }) => (
                           <button onClick={handleLogout}
-                            className={`${active ? 'bg-red-500 text-white' : 'text-slate-900 dark:text-slate-100'} group flex items-center rounded-md px-2 py-2 text-sm`}>
-                            <LogOut className="mr-2 h-5 w-5" /> Se déconnecter
+                            className={`${active ? 'bg-red-500 text-white' : 'text-slate-900 dark:text-slate-100'} group flex items-center rounded-md w-full text-left px-2 py-2 text-sm`}>
+                            <LogOut className="mr-2 h-5 w-5 inline" /> Se déconnecter
                           </button>
                         )}
                       </Menu.Item>
@@ -140,9 +140,9 @@ const Navbar = () => {
                 <a href="http://localhost:5174" target="_blank" rel="noreferrer"
                   className="block py-2 text-sky-600 dark:text-sky-400">Dashboard</a>
               )}
-              <NavLink to="/compte" className="block py-2">Mon Compte</NavLink>
-              <NavLink to="/compte" className="block py-2">Mes Réservations</NavLink>
-              <button onClick={handleLogout} className="block py-2 text-red-600">Se déconnecter</button>
+              <NavLink to="/compte" className="block py-2 text-slate-800 dark:text-slate-100">Mon Compte</NavLink>
+              <NavLink to="/compte/reservations" className="block py-2 text-slate-800 dark:text-slate-100">Mes Réservations</NavLink> {/* ✅ CORRECTION 2 */}
+              <button onClick={handleLogout} className="block w-full text-left py-2 text-red-600">Se déconnecter</button>
             </>
           ) : (
             <NavLink to="/connexion" className="btn-primary w-full text-center">Se connecter</NavLink>
