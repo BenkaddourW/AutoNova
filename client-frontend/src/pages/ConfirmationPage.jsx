@@ -83,7 +83,7 @@ const ConfirmationPage = () => {
         <p className="text-slate-700 dark:text-slate-300"><strong>Véhicule :</strong> {reservation?.marque} {reservation?.modele}</p>
         <p className="text-slate-700 dark:text-slate-300"><strong>Montant payé :</strong> ${Number(reservation?.montantttc).toFixed(2)}</p>
       </div>
-      <Link to="/mes-reservations" className="btn btn-primary mt-6">Voir mes réservations</Link>
+      <Link to="/compte/reservations" className="btn btn-primary mt-6">Voir mes réservations</Link>
     </div>
   );
 };
