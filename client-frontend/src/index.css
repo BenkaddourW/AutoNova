@@ -5,7 +5,19 @@
 @layer components {
   /* === BOUTONS === */
   .btn-primary {
-    @apply px-4 py-2 rounded-lg font-semibold text-sm text-white bg-sky-500 hover:bg-sky-600 transition-all duration-300;
+    @apply px-4 py-2 rounded-lg font-semibold text-sm text-white bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-semibold text-sm text-slate-700 dark:text-slate-200 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
+  }
+
+  .btn-outline {
+    @apply px-4 py-2 rounded-lg font-semibold text-sm text-sky-600 dark:text-sky-400 bg-transparent border border-sky-600 dark:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-lg font-semibold text-sm text-slate-600 dark:text-slate-300 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800;
   }
 
   /* === INPUT === */

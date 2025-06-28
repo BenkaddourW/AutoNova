@@ -60,7 +60,7 @@ const VehicleDetailsPage = () => {
         <div className="lg:col-span-2">
           {/* Titre et Prix */}
           <div className="mb-6">
-            <p className="text-sm font-semibold text-primary">{vehicle.categorie}</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">{vehicle.categorie}</p>
             <div className="flex justify-between items-baseline">
               <h1 className="text-4xl font-bold text-slate-900 dark:text-white">
                 {vehicle.marque} {vehicle.modele}

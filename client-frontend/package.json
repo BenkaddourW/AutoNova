@@ -16,6 +16,7 @@
     "@stripe/stripe-js": "^7.4.0",
     "axios": "^1.10.0",
     "country-state-city": "^3.2.1",
+    "daisyui": "^5.0.43",
     "date-fns": "^3.6.0",
     "framer-motion": "^12.18.1",
     "lucide-react": "^0.518.0",
