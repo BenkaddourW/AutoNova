@@ -1,8 +1,10 @@
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import * as clientService from '../../services/clientService';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { Link } from 'react-router-dom';
+import { CountryDropdown, RegionDropdown } from 'react-country-region-selector';
 
 const ProfileDetails = () => {
   const { user, clientProfile, refreshProfile } = useAuth();
@@ -12,7 +14,9 @@ const ProfileDetails = () => {
     register, 
     handleSubmit, 
     formState: { errors, isSubmitting, isDirty }, 
-    reset 
+    reset,
+    watch,
+    control
   } = useForm();
   
   const [serverError, setServerError] = useState(null);
@@ -55,6 +59,7 @@ const ProfileDetails = () => {
     }
   }, [user, clientProfile, reset]);
 
+  const selectedCountry = watch('pays');
 
   /**
    * Gère la soumission du formulaire de mise à jour.
@@ -86,10 +91,31 @@ const ProfileDetails = () => {
   };
 
   // Affichage pendant le chargement initial des données depuis le contexte
-  if (!user || !clientProfile) {
+  if (!user) {
     return (
       <div className="p-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg text-center">
         Chargement de votre profil...
+      </div>
+    );
+  }
+
+  // Si l'utilisateur n'a pas encore de profil client, afficher un message et un lien vers la complétion
+  if (!clientProfile) {
+    return (
+      <div className="p-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg text-center">
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-white mb-4">
+          Profil incomplet
+        </h2>
+        <p className="text-slate-600 dark:text-slate-300 mb-6">
+          Votre profil client n'a pas encore été créé. Pour pouvoir effectuer des réservations, 
+          vous devez compléter votre profil avec vos informations personnelles.
+        </p>
+        <Link 
+          to="/completer-profil" 
+          className="btn-primary inline-block"
+        >
+          Compléter mon profil
+        </Link>
       </div>
     );
   }
@@ -149,8 +175,21 @@ const ProfileDetails = () => {
                 {errors.ville && <p className="error-style">{errors.ville.message}</p>}
             </div>
             <div>
-                <label className="label-style">Province</label>
-                <input {...register('province', { required: 'La province est requise.' })} className="input-style" />
+                <label className="label-style">Province / État</label>
+                <Controller
+                  name="province"
+                  control={control}
+                  rules={{ required: 'La province est requise.' }}
+                  render={({ field }) => (
+                    <RegionDropdown
+                      country={selectedCountry}
+                      {...field}
+                      classes="input-style w-full"
+                      blankOptionLabel="Sélectionnez une région"
+                      defaultOptionLabel="Sélectionnez une région"
+                    />
+                  )}
+                />
                 {errors.province && <p className="error-style">{errors.province.message}</p>}
             </div>
             <div>
@@ -160,7 +199,17 @@ const ProfileDetails = () => {
             </div>
             <div>
                 <label className="label-style">Pays</label>
-                <input {...register('pays', { required: 'Le pays est requis.' })} className="input-style" />
+                <Controller
+                  name="pays"
+                  control={control}
+                  rules={{ required: 'Le pays est requis.' }}
+                  render={({ field }) => (
+                    <CountryDropdown
+                      {...field}
+                      classes="input-style w-full"
+                    />
+                  )}
+                />
                 {errors.pays && <p className="error-style">{errors.pays.message}</p>}
             </div>
            </div>

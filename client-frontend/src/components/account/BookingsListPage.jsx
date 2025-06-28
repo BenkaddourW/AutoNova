@@ -45,11 +45,17 @@ const BookingsListPage = () => {
   if (loading) return <div className="text-center p-8">Chargement de vos réservations...</div>;
   if (error) return <div className="text-center p-8 text-red-500">{error}</div>;
 
+  // Filtrer les doublons par idreservation
+  const uniqueBookings = bookings.filter(
+    (res, index, self) =>
+      index === self.findIndex(r => r.idreservation === res.idreservation)
+  );
+
   return (
     <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Mes Réservations</h1>
       
-      {bookings.length === 0 ? (
+      {uniqueBookings.length === 0 ? (
         <div className="text-center py-10 border-2 border-dashed rounded-lg">
           <p className="text-slate-500 dark:text-slate-400">Vous n'avez aucune réservation pour le moment.</p>
           <Link to="/vehicules" className="btn btn-primary mt-4">
@@ -58,7 +64,7 @@ const BookingsListPage = () => {
         </div>
       ) : (
         <ul className="space-y-6">
-          {bookings.map((booking) => (
+          {uniqueBookings.map((booking) => (
             <li key={booking.idreservation} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-700 transition-shadow hover:shadow-md">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -75,21 +81,21 @@ const BookingsListPage = () => {
               </div>
               <div className="border-t dark:border-slate-700 my-3"></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <Calendar size={16} className="text-sky-500" />
                   <strong>Départ :</strong> {new Date(booking.daterdv).toLocaleDateString('fr-FR')}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                    <Calendar size={16} className="text-sky-500" />
                   <strong>Retour :</strong> {new Date(booking.dateretour).toLocaleDateString('fr-FR')}
                 </div>
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <Tag size={16} className="text-green-500" />
-                  <strong>Montant total :</strong> {Number(booking.montantttc).toFixed(2)} $
+                  <strong>Montant du dépôt payé :</strong> {Number(booking.montantttc).toFixed(2)} $
                 </div>
               </div>
               <div className="mt-4 text-right">
-                <Link to={`/compte/reservations/${booking.idreservation}`} className="btn btn-outline btn-sm">
+                <Link to={`/compte/reservations/${booking.idreservation}`} className="btn btn-outline btn-sm dark:btn-primary dark:text-white">
                   Voir les détails
                 </Link>
               </div>

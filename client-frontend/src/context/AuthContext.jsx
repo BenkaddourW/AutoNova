@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           // On demande au backend notre profil complet.
+          // Le service est configuré pour retourner `null` en cas de 404, sans lancer d'erreur.
           const profileData = await clientService.getMyProfile();
           
           // Cas 1 : Le backend renvoie un profil client complet.
@@ -52,20 +53,21 @@ export const AuthProvider = ({ children }) => {
             setClientProfile(clientData);
 
           } else {
-             // Cas 2 : L'utilisateur est authentifié (token valide) mais n'a pas encore de profil client.
+             // Cas 2 : L'utilisateur est authentifié (token valide) mais n'a pas encore de profil client (le 404).
              // Il ne pourra pas réserver. user.idclient sera `undefined`, ce qui est le comportement attendu.
              const decodedUser = JSON.parse(atob(token.split('.')[1]));
              setUser(decodedUser);
-             setClientProfile(null);
+             setClientProfile(null); // On s'assure que le profil est explicitement null.
           }
 
         } catch (error) {
-          // Le token est probablement invalide ou expiré.
+          // Le token est probablement invalide, expiré, ou une autre erreur serveur est survenue.
           console.error("Session invalide ou profil non trouvé.", error.message);
           logout(); // On nettoie complètement la session.
         }
       }
-      setLoading(false); // On a fini de vérifier, l'application peut s'afficher.
+      // On a fini de vérifier, l'application peut s'afficher (le chargement est terminé).
+      setLoading(false); 
     };
 
     checkUserSession();

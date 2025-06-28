@@ -59,7 +59,7 @@ const ReservationPage = () => {
             {/* Étape 1: Informations du conducteur */}
             {currentStep === 0 && (
                 <form onSubmit={handleSubmit(processStep1)} className="space-y-6">
-                    <h2 className="text-2xl font-bold">Informations sur le conducteur principal</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Informations sur le conducteur principal</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <input {...register('prenom')} defaultValue={user?.prenom} className="input-style" placeholder="Prénom" />
                         <input {...register('nom')} defaultValue={user?.nom} className="input-style" placeholder="Nom" />
@@ -75,7 +75,7 @@ const ReservationPage = () => {
             {/* Étape 2: Options */}
             {currentStep === 1 && (
                 <div className="space-y-6">
-                    <h2 className="text-2xl font-bold">Options supplémentaires</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Options supplémentaires</h2>
                     <div className="space-y-4">
                         <label className="flex items-center p-4 border dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
                             <input type="checkbox" className="h-5 w-5 rounded text-sky-600" />
@@ -96,7 +96,7 @@ const ReservationPage = () => {
             {/* Étape 3: Paiement */}
             {currentStep === 2 && (
                  <form onSubmit={handleSubmit(processStep3)} className="space-y-6">
-                    <h2 className="text-2xl font-bold">Paiement sécurisé</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Paiement sécurisé</h2>
                     {/* Intégration Stripe ou autre ici */}
                     <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-md">
                         <p className="font-semibold">Placeholder pour le formulaire de paiement</p>
@@ -112,7 +112,7 @@ const ReservationPage = () => {
             {currentStep === 3 && (
                 <div className="text-center space-y-4 py-8">
                      <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-                    <h2 className="text-3xl font-bold">Réservation Confirmée !</h2>
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Réservation Confirmée !</h2>
                     <p className="text-slate-500">Un e-mail de confirmation a été envoyé à {getValues('email')}.</p>
                     <p>Votre numéro de réservation est le <span className="font-bold font-mono">#RES123456</span>.</p>
                      <div className="pt-6">

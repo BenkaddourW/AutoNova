@@ -27,15 +27,21 @@ const VehicleCard = ({ vehicle, searchDates, pickupLocationId }) => {
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600 dark:text-slate-300 my-4">{features.map((feat, i) => (<div key={i} className="flex items-center gap-2">{feat.icon}<span>{feat.label}</span></div>))}</div>
         </div>
         <div className="card-actions justify-end mt-2">
-          <Link to={`/vehicules/${vehicle.idvehicule}`} 
-                state={{ 
-                  initialDates: searchDates, 
-                  // On passe l'ID de la recherche si elle existe, sinon l'ID de la succursale du véhicule
-                  pickupLocationId: pickupLocationId || vehicle.succursaleidsuccursale 
-                }} 
-                className="btn btn-primary w-full">
-            Réserver maintenant
-          </Link>
+          {searchDates && searchDates.from && searchDates.to ? (
+            <Link to={`/vehicules/${vehicle.idvehicule}`}
+                  state={{ 
+                    initialDates: searchDates, 
+                    pickupLocationId: pickupLocationId || vehicle.succursaleidsuccursale 
+                  }}
+                  className="btn btn-primary w-full">
+              Réserver maintenant
+            </Link>
+          ) : (
+            <Link to={`/vehicules/${vehicle.idvehicule}`}
+                  className="btn btn-outline w-full">
+              Voir les détails
+            </Link>
+          )}
         </div>
       </div>
     </div>

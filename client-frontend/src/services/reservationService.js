@@ -85,3 +85,31 @@ export const getBookingDetails = async (bookingId) => {
     handleError(error);
   }
 };
+
+
+/**
+ * Initie le processus de paiement en appelant le backend.
+ * @param {object} reservationData - Les données de la réservation (idvehicule, idclient, dates, etc.).
+ * @returns {Promise<object>} La réponse du backend contenant le clientSecret de Stripe.
+ */
+export const initiateCheckout = async (reservationData) => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error("Vous devez être connecté pour initier une réservation.");
+    }
+
+    // ON APPELLE LA ROUTE CORRECTE : /reservations/initiate-checkout
+    const response = await apiClient.post('/reservations/initiate-checkout', reservationData, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    return response.data;
+
+  } catch (error) {
+    // La fonction handleError s'occupera de loguer l'erreur détaillée.
+    handleError(error);
+  }
+};

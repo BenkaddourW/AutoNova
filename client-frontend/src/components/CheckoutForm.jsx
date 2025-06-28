@@ -24,6 +24,9 @@ const CheckoutForm = () => {
     }
 
     setIsProcessing(true); // On affiche "Traitement..." sur le bouton
+    setMessage(null); // On efface les messages d'erreur précédents
+
+    console.log("Début du processus de paiement...");
 
     // 4. On demande à Stripe de confirmer le paiement.
     // C'est ici que les infos de la carte sont envoyées à Stripe de manière sécurisée.
@@ -37,13 +40,20 @@ const CheckoutForm = () => {
 
     // Cette partie du code ne s'exécute que si une erreur immédiate se produit
     // (ex: erreur de validation de la carte). Sinon, l'utilisateur est redirigé.
-    if (error.type === "card_error" || error.type === "validation_error") {
-      setMessage(error.message);
+    if (error) {
+      console.error("Erreur de paiement Stripe:", error);
+      if (error.type === "card_error" || error.type === "validation_error") {
+        setMessage(error.message);
+        toast.error(error.message);
+      } else {
+        setMessage("Une erreur inattendue est survenue.");
+        toast.error("Une erreur inattendue est survenue.");
+      }
+      setIsProcessing(false); // On réactive le bouton en cas d'erreur
     } else {
-      setMessage("Une erreur inattendue est survenue.");
+      console.log("Paiement en cours de traitement, redirection...");
+      // Le paiement est en cours, l'utilisateur sera redirigé automatiquement
     }
-
-    setIsProcessing(false); // On réactive le bouton en cas d'erreur
   };
 
   return (

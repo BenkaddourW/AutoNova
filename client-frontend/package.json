@@ -20,6 +20,7 @@
     "framer-motion": "^12.18.1",
     "lucide-react": "^0.518.0",
     "react": "^18.1.0",
+    "react-country-region-selector": "^4.0.2",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.1.0",
     "react-hook-form": "^7.58.1",

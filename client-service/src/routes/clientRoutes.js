@@ -5,8 +5,7 @@ const clientController = require("../controllers/clientController");
 
 
 
-// Récupérer un client par idutilisateur (employé/admin uniquement)
-router.get('/clients/by-user/:idUtilisateur', clientController.getClientByUserId);
+
 
 // Créer un profil client (complétion initiale)
 router.post("/clients", clientController.createClient);
@@ -16,6 +15,9 @@ router.get("/clients/me", clientController.getMyClientInfo);
 
 // Mettre à jour le profil du client connecté
 router.put("/clients/me", clientController.updateMyProfile);
+
+// Récupérer un client par idutilisateur (employé/admin uniquement)
+router.get('/clients/by-user/:idUtilisateur', clientController.getClientByUserId);
 
 // Récupérer la liste de tous les clients (employé/admin uniquement)
 router.get("/clients", clientController.getAllClients);

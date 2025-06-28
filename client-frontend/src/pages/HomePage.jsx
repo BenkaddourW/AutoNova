@@ -43,10 +43,10 @@ const HomePage = () => {
       >
         <div className="absolute inset-0 bg-black/60"></div>
         <div className="relative z-10 px-4 animate-fade-in-up">
-          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight" style={{textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight text-white dark:text-white" style={{textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>
             Votre prochaine aventure commence ici.
           </h1>
-          <p className="mt-4 text-lg md:text-xl max-w-2xl mx-auto" style={{textShadow: '0 2px 4px rgba(0,0,0,0.5)'}}>
+          <p className="mt-4 text-lg md:text-xl max-w-2xl mx-auto text-white dark:text-slate-300" style={{textShadow: '0 2px 4px rgba(0,0,0,0.5)'}}>
             La liberté de la route, sans les contraintes.
           </p>
           <HeroSearchForm />
@@ -91,7 +91,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-12">
             <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Les Plus Populaires</h2>
-            <p className="mt-2 text-slate-500">Découvrez les véhicules préférés de nos clients.</p>
+            <p className="mt-2 text-slate-500 dark:text-slate-400">Découvrez les véhicules préférés de nos clients.</p>
           </AnimatedSection>
           
           {loading ? (
@@ -104,7 +104,7 @@ const HomePage = () => {
               ))}
             </div>
           ) : (
-            <p className="text-center text-slate-500">Aucun véhicule en vedette pour le moment.</p>
+            <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg shadow"><h3 className="text-xl font-semibold text-slate-800 dark:text-white">Aucun résultat</h3><p className="mt-2 text-slate-500 dark:text-slate-400">Aucun véhicule ne correspond à vos critères.</p></div>
           )}
 
           <div className="text-center mt-12">

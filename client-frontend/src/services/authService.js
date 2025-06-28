@@ -1,4 +1,3 @@
-
 const GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL;
 
 // On construit l'URL de base pour le service d'authentification via la Gateway
@@ -35,16 +34,3 @@ export const logout = (refreshToken) => {
     body: JSON.stringify({ refreshToken }),
   }).then(handleResponse);
 };
-
-// Mise à jour d'un utilisateur existant
-// export const updateUser = (idutilisateur, userData) => {
-//   const token = localStorage.getItem('accessToken');
-//   return fetch(`${AUTH_API_URL}/utilisateurs/${idutilisateur}`, {
-//     method: 'PUT',
-//     headers: {
-//       'Content-Type': 'application/json',
-//       Authorization: `Bearer ${token}`,
-//     },
-//     body: JSON.stringify(userData),
-//   }).then(handleResponse);
-// };

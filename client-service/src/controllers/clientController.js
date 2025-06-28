@@ -3,12 +3,68 @@ const { DataTypes } = require("sequelize");
 const Client = require("../models/client")(sequelize, DataTypes);
 const axios = require("axios");
 
+// URL de l'API Gateway
+const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3000";
+
 // Créer le profil client (complétion initiale)
 exports.createClient = async (req, res) => {
   try {
-    const client = await Client.create(req.body);
+    const user = req.user; // injecté par la gateway
+    
+    // Sépare les champs utilisateur et client
+    const {
+      adresse1,
+      adresse2,
+      ville,
+      codepostal,
+      province,
+      pays,
+      numerotelephone,
+      numeromobile,
+      email,
+      ...clientFields
+    } = req.body;
+
+    // Crée le profil client
+    const client = await Client.create({
+      ...clientFields,
+      idutilisateur: user.idutilisateur
+    });
+
+    // Met à jour les champs utilisateur via auth-service (via la gateway)
+    if (
+      adresse1 !== undefined ||
+      adresse2 !== undefined ||
+      ville !== undefined ||
+      codepostal !== undefined ||
+      province !== undefined ||
+      pays !== undefined ||
+      numerotelephone !== undefined ||
+      numeromobile !== undefined ||
+      email !== undefined
+    ) {
+      await axios.put(
+        `${GATEWAY_URL}/auth/utilisateurs/${user.idutilisateur}`,
+        {
+          adresse1,
+          adresse2,
+          ville,
+          codepostal,
+          province,
+          pays,
+          numerotelephone,
+          numeromobile,
+          email,
+        },
+        {
+          headers: { Authorization: req.headers.authorization },
+        }
+      );
+    }
+
     res.status(201).json(client);
   } catch (err) {
+    console.error("Erreur dans createClient:", err.message);
     res.status(400).json({
       message: "Erreur lors de la création du client.",
       error: err.message,
@@ -63,7 +119,7 @@ exports.updateMyProfile = async (req, res) => {
 
     // Mets à jour les champs utilisateur via auth-service (via la gateway)
     const authServiceResponse = await axios.put(
-      `http://localhost:3000/auth/utilisateurs/${user.idutilisateur}`,
+      `${GATEWAY_URL}/auth/utilisateurs/${user.idutilisateur}`,
       {
         adresse1,
         adresse2,
@@ -141,7 +197,7 @@ exports.updateClient = async (req, res) => {
       email !== undefined
     ) {
       await axios.put(
-        `http://localhost:3000/auth/utilisateurs/${client.idutilisateur}`,
+        `${GATEWAY_URL}/auth/utilisateurs/${client.idutilisateur}`,
         {
           adresse1,
           adresse2,
@@ -189,7 +245,7 @@ exports.getClient = async (req, res) => {
 
     // Récupérer les infos utilisateur via la gateway
     const response = await axios.get(
-      `http://localhost:3000/auth/utilisateurs/${client.idutilisateur}`
+      `${GATEWAY_URL}/auth/utilisateurs/${client.idutilisateur}`
     );
     const utilisateur = response.data;
 
@@ -219,7 +275,7 @@ exports.getAllClients = async (req, res) => {
       clients.map(async (client) => {
         try {
           const response = await axios.get(
-            `http://localhost:3000/auth/utilisateurs/${client.idutilisateur}`
+            `${GATEWAY_URL}/auth/utilisateurs/${client.idutilisateur}`
           );
           return {
             ...client.toJSON(),
@@ -255,7 +311,7 @@ exports.getMyClientInfo = async (req, res) => {
 
     // Récupérer les infos utilisateur via la gateway
     const response = await axios.get(
-      `http://localhost:3000/auth/utilisateurs/${user.idutilisateur}`
+      `${GATEWAY_URL}/auth/utilisateurs/${user.idutilisateur}`
     );
     const utilisateur = response.data;
 

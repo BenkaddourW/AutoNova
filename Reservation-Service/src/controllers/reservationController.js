@@ -419,7 +419,8 @@ exports.finalizeReservation = asyncHandler(async (req, res) => {
             throw new Error(`Le paiement n'est pas confirmé. Statut : ${paymentIntent.status}`);
         }
         
-        const details = reservationDetails.reservationDetails || reservationDetails;
+        // ✅ CORRECTION : On utilise les bonnes données de réservation
+        const details = reservationDetails.reservationData || reservationDetails;
         
         // ✅ CORRECTION DÉFINITIVE : ON GÉNÈRE LE NUMÉRO ICI
         const randomSuffix = Math.floor(1000 + Math.random() * 9000);

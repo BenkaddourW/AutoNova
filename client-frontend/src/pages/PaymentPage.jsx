@@ -1,4 +1,4 @@
-// src/pages/PaymentPage.jsx (Version finale et la plus robuste)
+// src/pages/PaymentPage.jsx (Version Finale et Robuste)
 
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -6,8 +6,9 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { toast } from 'react-hot-toast';
 import CheckoutForm from '../components/CheckoutForm';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Car, Calendar, MapPin, Hash } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -15,38 +16,58 @@ const PaymentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1. On utilise des états séparés et initialisés à null/vide.
+  // On initialise les états à des valeurs non-nulles pour éviter les erreurs
   const [clientSecret, setClientSecret] = useState('');
-  const [recap, setRecap] = useState(null);
-  const [reservationDetails, setReservationDetails] = useState(null);
-  const [idintentstripe, setIdintentstripe] = useState('');
-  const [isLoading, setIsLoading] = useState(true); // État de chargement explicite
+  const [recap, setRecap] = useState(null); // Recap peut rester null au début
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Ce useEffect s'exécute une seule fois pour initialiser les états.
+  // Ce useEffect s'exécute une seule fois au montage
   useEffect(() => {
-    const stateFromLocation = location.state;
+    // 1. On essaie de récupérer les données de la navigation (location.state)
+    let stateData = location.state;
 
-    // Si on arrive sur la page sans données, on redirige.
-    if (!stateFromLocation || !stateFromLocation.clientSecret) {
+    // 2. Si les données n'existent pas (ex: rechargement de page), on essaie sessionStorage
+    if (!stateData) {
+      const savedDataString = sessionStorage.getItem('reservationDetails');
+      if (savedDataString) {
+        try {
+          const savedData = JSON.parse(savedDataString);
+          stateData = {
+            clientSecret: savedData.clientSecret,
+            idintentstripe: savedData.idintentstripe,
+            recap: savedData.recap
+          };
+          
+          // ✅ CORRECTION : Si le véhicule n'a pas les données de succursale, on les ajoute depuis les données sauvegardées
+          if (stateData.recap?.vehicule && !stateData.recap.vehicule.Succursale && savedData.reservationData) {
+            // On ajoute les informations de succursale depuis les données de réservation
+            stateData.recap.vehicule.Succursale = {
+              nomsuccursale: 'Succursale de départ',
+              idsuccursale: savedData.reservationData.idsuccursalelivraison
+            };
+          }
+        } catch (error) {
+          console.error('Erreur lors du parsing des données sauvegardées:', error);
+        }
+      }
+    }
+
+    // 3. Si on n'a toujours rien, la session est perdue, on redirige
+    if (!stateData || !stateData.clientSecret) {
       toast.error("Session de paiement invalide. Veuillez recommencer.");
       navigate('/');
       return;
     }
 
-    // On peuple nos états locaux avec les données reçues
-    setClientSecret(stateFromLocation.clientSecret);
-    setRecap(stateFromLocation.recap);
-    setReservationDetails(stateFromLocation.reservationDetails);
-    setIdintentstripe(stateFromLocation.idintentstripe);
+    // 4. On peuple nos états locaux avec les données trouvées
+    setClientSecret(stateData.clientSecret);
+    setRecap(stateData.recap); // Le recap contient toutes les infos nécessaires
 
-    // On sauvegarde les données dans sessionStorage pour la page de confirmation
-    sessionStorage.setItem('reservationDetails', JSON.stringify(stateFromLocation));
-    
     setIsLoading(false); // On a fini de charger les données
-  }, []); // Le tableau de dépendances vide garantit une exécution unique.
+  }, [location.state, navigate]);
 
 
-  // 3. Préparation des options pour Stripe
+  // Préparation des options pour Stripe
   const stripeOptions = useMemo(() => {
     if (!clientSecret) return null;
     return {
@@ -56,14 +77,32 @@ const PaymentPage = () => {
   }, [clientSecret]);
   
 
-  // 4. Garde de chargement beaucoup plus simple
-  if (isLoading || !stripeOptions) {
-    return <div className="text-center p-8"><span className="loading loading-spinner loading-lg"></span></div>;
+  // Garde de chargement : on attend que `recap` et `stripeOptions` soient prêts
+  if (isLoading || !recap || !stripeOptions) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
   }
 
-  // On peut extraire `affichage` ici en toute sécurité
-  const { affichage } = reservationDetails;
+  // ✅ CORRECTION : Vérification complète des données nécessaires
+  if (!recap.vehicule) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-red-500 mb-4">Données de véhicule manquantes</h2>
+          <p className="text-slate-600 mb-4">Impossible de charger les informations du véhicule.</p>
+          <button onClick={() => navigate('/')} className="btn btn-primary">
+            Retour à l'accueil
+          </button>
+        </div>
+      </div>
+    );
+  }
 
+  // Si on arrive ici, `recap` existe et n'est pas null.
+  
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-3xl font-bold mb-6">Finalisez votre réservation</h1>
@@ -72,31 +111,47 @@ const PaymentPage = () => {
         {/* Colonne du récapitulatif */}
         <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-lg order-last md:order-first">
           <h2 className="text-xl font-semibold mb-4">Récapitulatif de votre location</h2>
-            {affichage && (
-              <>
-                <div className="flex items-center gap-4 mb-4">
-                    <img src={affichage.vehiculeImage} alt={affichage.vehiculeNom} className="rounded-lg object-cover w-28 h-20" />
-                    <div>
-                        <p className="font-bold text-lg">{affichage.vehiculeNom}</p>
-                        <p className="text-sm text-slate-500">{recap.vehicule?.categorie}</p>
-                    </div>
+            
+            {/* ✅ CORRECTION : On utilise `recap.vehicule` qui vient directement du backend */}
+            <div className="flex items-center gap-4 mb-4">
+                <img 
+                  src={recap.vehicule?.VehiculeImages?.find(img => img.estprincipale)?.urlimage || recap.vehicule?.VehiculeImages?.[0]?.urlimage || 'https://via.placeholder.com/150'} 
+                  alt={`${recap.vehicule?.marque || 'Véhicule'} ${recap.vehicule?.modele || ''}`}
+                  className="rounded-lg object-cover w-28 h-20 bg-slate-300" 
+                />
+                <div>
+                    <p className="font-bold text-lg">{recap.vehicule?.marque || 'Marque'} {recap.vehicule?.modele || 'Modèle'}</p>
+                    <p className="text-sm text-slate-500">{recap.vehicule?.categorie || 'Catégorie non spécifiée'}</p>
                 </div>
-                <div className="text-sm space-y-2 mb-4">
-                    <p><strong>Départ :</strong> {affichage.succursaleDepartNom}<br/>{format(new Date(reservationDetails.datedebut), 'd MMMM yyyy', { locale: fr })}</p>
-                    <p><strong>Retour :</strong> {affichage.succursaleRetourNom}<br/>{format(new Date(reservationDetails.datefin), 'd MMMM yyyy', { locale: fr })}</p>
-                </div>
-              </>
-            )}
-            <div className="divider my-4"></div>
-            <div className="space-y-2 text-sm">
-                <p className="flex justify-between"><span>Location ({recap.nbJours} jours)</span> <span>${recap.montantTotal}</span></p>
-                <p className="flex justify-between"><span>Taxes et frais</span> <span>${recap.taxes}</span></p>
-                <p className="flex justify-between font-semibold border-t pt-2 mt-2"><span>Coût total estimé</span> <span>${recap.montantTTC}</span></p>
             </div>
+            <div className="text-sm space-y-2 mb-4">
+                {/* ✅ CORRECTION : Ajout de vérifications de sécurité pour éviter les erreurs */}
+                <p className="flex items-start gap-2">
+                  <MapPin size={16} className="mt-1 shrink-0"/> 
+                  <span>
+                    <strong>Départ :</strong> {recap.vehicule?.Succursale?.nomsuccursale || 'Succursale non spécifiée'}<br/>
+                    {recap.datedebut ? format(new Date(recap.datedebut), 'd MMMM yyyy', { locale: fr }) : 'Date non spécifiée'}
+                  </span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <Calendar size={16} className="mt-1 shrink-0"/> 
+                  <span><strong>Durée :</strong> {recap.nbJours || 0} jours</span>
+                </p>
+            </div>
+          
             <div className="divider my-4"></div>
+            
+            <div className="space-y-2 text-sm">
+                <p className="flex justify-between"><span>Location ({recap.nbJours || 0} jours)</span> <span>${recap.montantTotalLocation || '0.00'}</span></p>
+                <p className="flex justify-between"><span>Taxes et frais</span> <span>${recap.taxes || '0.00'}</span></p>
+                <p className="flex justify-between font-semibold border-t pt-2 mt-2"><span>Coût total estimé</span> <span>${recap.montantTTC || '0.00'}</span></p>
+            </div>
+            
+            <div className="divider my-4"></div>
+            
             <div className="flex justify-between items-center font-bold text-lg">
                 <span>Dépôt à payer aujourd'hui</span> 
-                <span>${recap.montantDepot}</span>
+                <span>${recap.montantDepot || '0.00'}</span>
             </div>
             <p className="text-xs text-slate-500 mt-4">Le solde restant sera dû au moment de la prise en charge du véhicule.</p>
         </div>

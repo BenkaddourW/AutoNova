@@ -5,6 +5,9 @@ import { Suspense, lazy } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 
+// --- Error Boundary ---
+import ErrorBoundary from '../components/ErrorBoundary';
+
 // --- Pages Publiques (importées directement pour un chargement rapide de la page d'accueil) ---
 import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
@@ -44,10 +47,12 @@ const AppLayout = () => (
   <div className="bg-slate-100 dark:bg-slate-900 min-h-screen flex flex-col">
     <Navbar />
     <main className="flex-grow">
-      {/* Suspense est nécessaire pour le lazy loading */}
-      <Suspense fallback={<LazyLoadingFallback />}>
-        <Outlet />
-      </Suspense>
+      <ErrorBoundary>
+        {/* Suspense est nécessaire pour le lazy loading */}
+        <Suspense fallback={<LazyLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     </main>
     <Footer />
   </div>
