@@ -12,27 +12,52 @@ if (!DASHBOARD_API_URL || !RESERVATIONS_API_URL) {
  */
 export const getDashboardStats = async () => {
   try {
-    const response = await fetch(`${DASHBOARD_API_URL}/dashboard-data`);
-    if (!response.ok) throw new Error('Erreur de récupération des stats du dashboard.');
-    return response.json();
+    // 🔁 On récupère les données générales, stats par succursale ET top 3 en parallèle
+    const [mainResponse, vehiculesBySuccursaleResponse, topSuccursalesResponse] = await Promise.all([
+      fetch(`${DASHBOARD_API_URL}/dashboard-data`),
+      fetch(`${DASHBOARD_API_URL}/vehicules-by-succursale`),
+      fetch(`${DASHBOARD_API_URL}/top-succursales`) // 👈 Ajouté ici
+    ]);
+
+    if (!mainResponse.ok) throw new Error('Erreur de récupération des stats du dashboard.');
+    if (!vehiculesBySuccursaleResponse.ok) throw new Error('Erreur stats véhicules par succursale.');
+    if (!topSuccursalesResponse.ok) throw new Error('Erreur top succursales.');
+
+    const mainData = await mainResponse.json();
+    const vehiculesBySuccursale = await vehiculesBySuccursaleResponse.json();
+    const topSuccursales = await topSuccursalesResponse.json(); // 👈 Lecture ajoutée
+
+    // 👇 DEBUG
+    console.log("Réponse /dashboard-data :", mainData);
+    console.log("Réponse /vehicules-by-succursale :", vehiculesBySuccursale);
+    console.log("Réponse /top-succursales :", topSuccursales);
+
+    return {
+      ...mainData,
+      vehiculesBySuccursale,
+      topSuccursales // 👈 Ajouté dans le retour
+    };
+
   } catch (error) {
     console.error("Erreur dans getDashboardStats:", error);
-    // Retourne un objet par défaut complet pour éviter les erreurs dans le composant
     return { 
       vehicules: { total: 0 }, 
       succursales: { count: 0 }, 
       reservationsActives: 0,
-      utilisateurs: { total: 0 } 
+      utilisateurs: { total: 0 },
+      vehiculesBySuccursale: [],
+      topSuccursales: [] // 👈 pour éviter que React plante si la clé manque
     };
   }
 };
+
 
 /**
  * Récupère les réservations récentes pour le widget du dashboard.
  */
 export const getRecentReservations = async () => {
   try {
-    const response = await fetch(`${RESERVATIONS_API_URL}/recent`);
+    const response = await fetch(`${RESERVATIONS_API_URL}/stats/recent`);
     if (!response.ok) throw new Error('Erreur de récupération des réservations récentes.');
     const data = await response.json();
     return data.map(res => ({
@@ -46,6 +71,10 @@ export const getRecentReservations = async () => {
     return [];
   }
 };
+
+//Recupere les reservations du jour
+
+
 
 /**
  * Récupère les données d'évolution mensuelle pour le graphique du dashboard.

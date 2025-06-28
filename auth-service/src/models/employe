@@ -1,6 +1,5 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const Utilisateur = require("./utilisateur");
 
 const Employe = sequelize.define(
   "Employe",
@@ -12,7 +11,6 @@ const Employe = sequelize.define(
     },
     codeemploye: {
       type: DataTypes.STRING,
-      allowNull: false,
       unique: true,
     },
     dateembauche: {
@@ -27,7 +25,7 @@ const Employe = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: Utilisateur,
+        model: "utilisateur", // nom de la table, pas le modèle importé
         key: "idutilisateur",
       },
     },
@@ -39,9 +37,14 @@ const Employe = sequelize.define(
   {
     tableName: "employe",
     timestamps: false,
+    hooks: {
+      beforeCreate: async (employe) => {
+        if (!employe.codeemploye) {
+          employe.codeemploye = `EMP${employe.idutilisateur}_${Date.now()}`;
+        }
+      },
+    },
   }
 );
-
-Employe.belongsTo(Utilisateur, { foreignKey: "idutilisateur" });
 
 module.exports = Employe;

@@ -1,3 +1,4 @@
+
 import { Edit, Trash2 } from 'lucide-react';
 
 const TaxesTable = ({ taxes, onEdit, onDelete }) => (
@@ -9,6 +10,8 @@ const TaxesTable = ({ taxes, onEdit, onDelete }) => (
           <th className="px-6 py-3">Dénomination</th>
           <th className="px-6 py-3">Abrégé</th>
           <th className="px-6 py-3">Taux (%)</th>
+          <th className="px-6 py-3">Pays</th>
+          <th className="px-6 py-3">Province</th>
           <th className="px-6 py-3 text-center">Actions</th>
         </tr>
       </thead>
@@ -18,7 +21,10 @@ const TaxesTable = ({ taxes, onEdit, onDelete }) => (
             <td className="px-6 py-4 font-mono text-xs">{t.idtaxe}</td>
             <td className="px-6 py-4">{t.denomination}</td>
             <td className="px-6 py-4">{t.abrege}</td>
-            <td className="px-6 py-4">{t.taux}</td>
+            <td className="px-6 py-4">{Number(t.taux).toFixed(2)}</td>
+            {/* ✅ On lit maintenant directement les propriétés de premier niveau */}
+            <td className="px-6 py-4">{t.pays}</td>
+            <td className="px-6 py-4">{t.province}</td>
             <td className="px-6 py-4 text-center flex justify-center gap-2">
               <button onClick={() => onEdit(t)} className="p-1 text-sky-600 hover:text-sky-800"><Edit size={16} /></button>
               <button onClick={() => onDelete(t.idtaxe)} className="p-1 text-red-600 hover:text-red-800"><Trash2 size={16} /></button>

@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
-const { authenticate } = require("../middlewares/authMiddleware");
+const { authenticateJWT } = require("../middlewares/authMiddleware");
+//const authenticateJWT = require("../middlewares/authMiddleware");
 
 // Inscription
 router.post("/register", authController.register);
@@ -14,6 +15,9 @@ router.post("/logout", authController.logout);
 
 // Rafraîchir le token d'accès
 router.post("/refresh-token", authController.refreshToken);
+
+//Route pour recuperer tous les utilisateurs
+router.get("/utilisateurs", authenticateJWT, authController.getUtilisateurs);
 
 // Récupérer un utilisateur par son id
 router.get("/utilisateurs/:idutilisateur", authController.getUtilisateurById);
@@ -34,5 +38,8 @@ router.put(
 
 // Mettre à jour n'importe quel utilisateur (admin/employé)
 router.put("/utilisateurs/:idutilisateur", authController.updateUtilisateur);
+
+//Creer un admin ou employe
+router.post("/admin/create-user", authController.createUserByAdmin);
 
 module.exports = router;

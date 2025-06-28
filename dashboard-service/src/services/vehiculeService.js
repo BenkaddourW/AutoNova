@@ -1,29 +1,29 @@
 const axios = require('axios');
+const { getServiceUrl } = require('../lib/consul-client'); // Importer notre client Consul
 
-const baseURL = process.env.VEHICULE_SERVICE_URL;
-
+// ✅ Statistiques générales des véhicules
 async function getVehiculeStats() {
   try {
-    // On appelle notre nouvel endpoint de statistiques générales
-    const { data } = await axios.get(`${baseURL}/vehicules/stats/general`);
+    const baseUrl = await getServiceUrl('vehicule-service');
+    const { data } = await axios.get(`${baseUrl}/vehicules/stats/general`);
     return data;
   } catch (error) {
     console.error('Error fetching vehicule stats:', error.message);
-    // Retourner un objet par défaut complet en cas d'erreur
     return {
       total: 0,
       disponibles: 0,
       en_location: 0,
       en_maintenance: 0,
-      hors_service: 0,
+      hors_service: 0
     };
   }
 }
 
-// Nouvelle fonction pour obtenir les stats par succursale
+// ✅ Stats brutes par succursale (non utilisées pour le BarChart)
 async function getVehiculeStatsBySuccursale() {
   try {
-    const { data } = await axios.get(`${baseURL}/vehicules/stats/by-succursale`);
+    const baseUrl = await getServiceUrl('vehicule-service');
+    const { data } = await axios.get(`${baseUrl}/vehicules/stats/by-succursale`);
     return data;
   } catch (error) {
     console.error('Error fetching vehicule stats by succursale:', error.message);
@@ -31,4 +31,43 @@ async function getVehiculeStatsBySuccursale() {
   }
 }
 
-module.exports = { getVehiculeStats, getVehiculeStatsBySuccursale };
+// ✅ Stats enrichies avec nom de succursale (pour BarChart)
+async function getVehiculeStatsBySuccursaleWithNames() {
+  try {
+    const vehiculeUrl = await getServiceUrl("vehicule-service");
+    const succursaleUrl = await getServiceUrl("succursale-service");
+
+    console.log("📡 URL Véhicules :", vehiculeUrl);
+    console.log("📡 URL Succursales :", succursaleUrl);
+
+    const [statsRes, succursalesRes] = await Promise.all([
+      axios.get(`${vehiculeUrl}/vehicules/stats/by-succursale`),
+      axios.get(`${succursaleUrl}/succursales`)
+    ]);
+
+    const stats = statsRes.data;
+    const succursales = succursalesRes.data;
+
+    console.log("✅ Stats reçues :", stats);
+    console.log("✅ Succursales reçues :", succursales);
+
+ return stats.map(item => {
+  const match = succursales.find(s => s.idsuccursale === item.succursaleidsuccursale);
+  return {
+    nomsuccursale: match ? match.nomsuccursale : `Succursale ${item.succursaleidsuccursale}`,
+    count: Number.isNaN(parseInt(item.vehiculeCount)) ? 0 : parseInt(item.vehiculeCount)
+  };
+});
+
+  } catch (error) {
+    console.error("❌ Erreur dans getVehiculeStatsBySuccursaleWithNames :", error);
+    throw error;
+  }
+}
+
+// ✅ Exports
+module.exports = {
+  getVehiculeStats,
+  getVehiculeStatsBySuccursale,
+  getVehiculeStatsBySuccursaleWithNames
+};

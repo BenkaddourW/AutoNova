@@ -185,3 +185,19 @@ app.use("/contrats", authenticateJWT, (req, res, next) => {
 app.listen(PORT, () => {
   console.log(`API Gateway démarrée sur le port ${PORT}`);
 });
+
+//Route pour le service succursales
+app.use("/succursales", (req, res, next) => {
+  getServiceUrl("succursale-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service succursale-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/succursales" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});

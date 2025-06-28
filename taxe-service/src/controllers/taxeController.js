@@ -23,18 +23,6 @@ exports.getTaxes = asyncHandler(async (req, res) => {
   res.json(taxes);
 });
 
-/** * @desc Récupère une seule taxe par son ID
- * @route GET /api/taxes/:id   * @access Public
- */
-exports.getTaxeById = asyncHandler(async (req, res) => {
-  const taxe = await Taxe.findByPk(req.params.id);
-  if (!taxe) {
-    res.status(404);
-    throw new Error("Taxe non trouvée");
-  }
-  res.json(taxe);
-});
-
 /** * @desc Crée une nouvelle taxe
  * @route POST /api/taxes   * @access Admin
  */
@@ -112,7 +100,7 @@ exports.deleteTaxe = asyncHandler(async (req, res) => {
 
 /**
  * @desc Récupère les taxes applicables à une localité (pays + province)
- * @route GET /api/taxes/localite?pays=Canada&province=Quebec
+ * @route GET /apicomment ca/taxes/localite?pays=Canada&province=Quebec
  * @access Public
  */
 exports.getTaxesByLocalite = asyncHandler(async (req, res) => {
@@ -136,4 +124,16 @@ exports.getTaxesByLocalite = asyncHandler(async (req, res) => {
   });
 
   res.json(taxes);
+});
+
+/** * @desc Récupère une seule taxe par son ID
+ * @route GET /api/taxes/:id   * @access Public
+ */
+exports.getTaxeById = asyncHandler(async (req, res) => {
+  const taxe = await Taxe.findByPk(req.params.id);
+  if (!taxe) {
+    res.status(404);
+    throw new Error("Taxe non trouvée");
+  }
+  res.json(taxe);
 });

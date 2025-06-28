@@ -42,6 +42,11 @@ router.put(
 
 router.delete("/:id", reservationController.deleteReservation);
 
+router.get(
+  "/:id/full-details",
+  reservationController.getReservationFullDetails
+);
+
 // Vérifier la disponibilité d'une liste de véhicules
 router.post("/disponibilites", reservationController.getDisponibilites);
 

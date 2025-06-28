@@ -1,8 +1,11 @@
-const Utilisateur = require("../models/utilisateur");
-const Client = require("../models/client");
-const Employe = require("../models/employe");
-const Role = require("../models/role");
-const UtilisateurRole = require("../models/utilisateur_role");
+// const Utilisateur = require("../models/utilisateur");
+// const Client = require("../models/client");
+// const Employe = require("../models/employe");
+// const Role = require("../models/role");
+// const UtilisateurRole = require("../models/utilisateur_role");
+const { Op } = require("sequelize");
+const { Utilisateur, Role, Employe, UtilisateurRole } = require("../models");
+
 const bcrypt = require("bcrypt");
 const {
   generateAccessToken,
@@ -12,7 +15,8 @@ const {
 const TokenSession = require("../models/token_session");
 const jwt = require("jsonwebtoken");
 
-// Inscription de base
+/////
+// Inscription de base du client
 exports.register = async (req, res) => {
   try {
     const { email, motdepasse, nom, prenom, role } = req.body;
@@ -140,6 +144,7 @@ exports.completeProfile = async (req, res) => {
   }
 };
 
+/////////
 // Connexion utilisateur
 exports.login = async (req, res) => {
   try {
@@ -173,12 +178,24 @@ exports.login = async (req, res) => {
       role = roleObj ? roleObj.role : null;
     }
 
+    // Récupérer l'id de la succursale si employé
+    let idsuccursale = null;
+    if (role === "employe") {
+      const employe = await Employe.findOne({
+        where: { idutilisateur: utilisateur.idutilisateur },
+      });
+      if (employe) {
+        idsuccursale = employe.idsuccursale;
+      }
+    }
+
     const payload = {
       idutilisateur: utilisateur.idutilisateur,
       email: utilisateur.email,
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: role,
+      idsuccursale: idsuccursale, // null pour admin/client, défini pour employé
     };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
@@ -200,6 +217,7 @@ exports.login = async (req, res) => {
         nom: utilisateur.nom,
         prenom: utilisateur.prenom,
         role: role,
+        idsuccursale: idsuccursale,
       },
     });
   } catch (error) {
@@ -207,6 +225,7 @@ exports.login = async (req, res) => {
   }
 };
 
+/////////
 // Rafraîchir le token d'accès
 exports.refreshToken = async (req, res) => {
   try {
@@ -245,8 +264,8 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+//////////
 // Déconnexion utilisateur
-
 exports.logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -281,6 +300,7 @@ exports.logout = async (req, res) => {
   }
 };
 
+///////
 // Récupérer un utilisateur par son id
 exports.getUtilisateurById = async (req, res) => {
   try {
@@ -298,6 +318,8 @@ exports.getUtilisateurById = async (req, res) => {
   }
 };
 
+//////
+// Mettre à jour son propre profil
 exports.updateUtilisateur = async (req, res) => {
   try {
     const { idutilisateur } = req.params;
@@ -326,5 +348,130 @@ exports.updateUtilisateur = async (req, res) => {
       message: "Erreur lors de la mise à jour de l'utilisateur.",
       error: err.message,
     });
+  }
+};
+
+/////////
+// Création d'un utilisateur (admin ou employé) par un admin
+exports.createUserByAdmin = async (req, res) => {
+  try {
+    const {
+      email,
+      motdepasse,
+      nom,
+      prenom,
+      role,
+      adresse1,
+      adresse2,
+      ville,
+      codepostal,
+      province,
+      pays,
+      numerotelephone,
+      numeromobile,
+      idsuccursale,
+      dateembauche,
+      datedepart,
+      // codeemploye retiré, il sera généré automatiquement par le modèle
+    } = req.body;
+    console.log("Payload reçu:", req.body);
+
+    if (!email || !motdepasse || !nom || !prenom || !role) {
+      return res
+        .status(400)
+        .json({ message: "Champs obligatoires manquants." });
+    }
+
+    const utilisateurExiste = await Utilisateur.findOne({ where: { email } });
+    if (utilisateurExiste) {
+      return res.status(409).json({ message: "Cet email est déjà utilisé." });
+    }
+
+    const hash = await bcrypt.hash(motdepasse, 10);
+
+    // 1. Créer l'utilisateur
+    const nouvelUtilisateur = await Utilisateur.create({
+      email,
+      motdepasse: hash,
+      nom,
+      prenom,
+      adresse1,
+      adresse2,
+      ville,
+      codepostal,
+      province,
+      pays,
+      numerotelephone,
+      numeromobile,
+    });
+
+    // 2. Associer le rôle
+    const roleObj = await Role.findOne({ where: { role } });
+    if (!roleObj) {
+      return res.status(400).json({ message: "Rôle invalide." });
+    }
+    await UtilisateurRole.create({
+      idutilisateur: nouvelUtilisateur.idutilisateur,
+      idrole: roleObj.idrole,
+    });
+
+    // 3. Si employé ou admin, créer dans employe
+    if (role === "employe" || role === "admin") {
+      await Employe.create({
+        idutilisateur: nouvelUtilisateur.idutilisateur,
+        // codeemploye non transmis, généré automatiquement par le modèle
+        dateembauche,
+        datedepart,
+        idsuccursale: role === "employe" ? idsuccursale : null,
+      });
+    }
+
+    res.status(201).json({
+      message: "Utilisateur créé avec succès.",
+      utilisateur: {
+        idutilisateur: nouvelUtilisateur.idutilisateur,
+        email: nouvelUtilisateur.email,
+        nom: nouvelUtilisateur.nom,
+        prenom: nouvelUtilisateur.prenom,
+        role: roleObj.role,
+        idsuccursale: role === "employe" ? idsuccursale : null,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur.", error: error.message });
+  }
+};
+
+///////
+// Récupérer tous les utilisateurs avec options de filtrage
+exports.getUtilisateurs = async (req, res) => {
+  try {
+    const { nom, prenom, role, idsuccursale } = req.query;
+    const where = {};
+
+    if (nom) where.nom = { [Op.like]: `%${nom}%` };
+    if (prenom) where.prenom = { [Op.like]: `%${prenom}%` };
+    if (role) where["$Roles.role$"] = role;
+    if (idsuccursale) where["$Employes.idsuccursale$"] = idsuccursale;
+
+    const utilisateurs = await Utilisateur.findAll({
+      where,
+      include: [
+        {
+          model: Role,
+          as: "Roles",
+          through: { attributes: [] },
+        },
+        {
+          model: Employe,
+          as: "Employes",
+        },
+      ],
+      order: [["idutilisateur", "DESC"]],
+    });
+
+    res.json(utilisateurs);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
 };

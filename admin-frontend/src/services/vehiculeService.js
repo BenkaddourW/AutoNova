@@ -61,3 +61,24 @@ export const getVehiculeFilterOptions = () => {
 export const getVehiculeStatsByMarque = () => {
   return fetch(`${API_URL}/stats/by-marque`).then(handleResponse);
 };
+
+async function getVehiculeStatsBySuccursaleWithNames() {
+  const vehiculeUrl = await getServiceUrl("vehicule-service");
+  const succursaleUrl = await getServiceUrl("succursale-service");
+
+  const [statsRes, succursalesRes] = await Promise.all([
+    axios.get(`${vehiculeUrl}/vehicules/stats/by-succursale`),
+    axios.get(`${succursaleUrl}/succursales`)
+  ]);
+
+  const stats = statsRes.data;
+  const succursales = succursalesRes.data;
+
+  return stats.map(item => {
+    const match = succursales.find(s => s.idsuccursale === item.succursaleidsuccursale);
+    return {
+      nomsuccursale: match ? match.nomsuccursale : `Succursale ${item.succursaleidsuccursale}`,
+      count: parseInt(item.vehiculeCount)
+    };
+  });
+}

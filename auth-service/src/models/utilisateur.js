@@ -1,6 +1,11 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
+// Ajoute ces imports :
+const Role = require("./role");
+const Employe = require("./employe");
+const UtilisateurRole = require("./utilisateur_role");
+
 const Utilisateur = sequelize.define(
   "utilisateur",
   {

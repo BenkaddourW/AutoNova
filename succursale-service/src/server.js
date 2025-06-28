@@ -6,6 +6,8 @@ const morgan = require("morgan");
 const authenticateToken = require("./middlewares/authMiddleware");
 const succursaleRoutes = require("./routes/succursaleRoutes");
 const errorHandler = require("./middlewares/errorHandler");
+const Consul = require("consul");
+const consul = new Consul({ host: "localhost", port: 8500 });
 
 
 
@@ -24,8 +26,31 @@ app.use(helmet());
 app.use(morgan("dev"));
 
 
-app.use("/api/succursales", succursaleRoutes);
+app.use("/succursales", succursaleRoutes);
 app.use(errorHandler);
+
+// Enregistrement auprès de Consul
+const serviceId = "succursale-service-" + process.pid;
+
+consul.agent.service.register(
+  {
+    id: serviceId,
+    name: "succursale-service",
+    address: "localhost",
+    port: Number(PORT),
+  },
+  (err) => {
+    if (err) throw err;
+    console.log("succursale-service enregistré auprès de Consul");
+  }
+);
+
+// Désenregistrement à l'arrêt du process
+process.on("exit", () => {
+  consul.agent.service.deregister(serviceId, () => {
+    console.log("succursale-service désenregistré de Consul");
+  });
+});
 
 
 app.listen(PORT, () => {
