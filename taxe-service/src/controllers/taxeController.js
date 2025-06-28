@@ -7,6 +7,7 @@ const TaxeLocalite = require('../models/taxe_localite');
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
 
+
 // --- FONCTIONS DE LECTURE (GET) ---
 exports.getTaxes = asyncHandler(async (req, res) => {
   const { search } = req.query;
@@ -127,4 +128,50 @@ exports.getTaxesByLocalite = asyncHandler(async (req, res) => {
     }]
   });
   res.json(taxes);
+});
+
+
+/**
+ * Calcule les taxes pour une localité et un montant donnés.
+ */
+exports.calculateTaxes = asyncHandler(async (req, res) => {
+    const { pays, province, montant_hors_taxe } = req.body;
+
+    if (!pays || !province || montant_hors_taxe === undefined) {
+        return res.status(400).json({ message: 'Les paramètres pays, province et montant_hors_taxe sont requis.' });
+    }
+
+    // 1. Trouver les taxes applicables pour la localité
+    const taxesApplicables = await Taxe.findAll({
+        include: [{
+            model: TaxeLocalite,
+            as: 'localites',
+            where: { pays, province },
+            required: true // Ne retourne que les taxes qui ont une entrée pour cette localité
+        }]
+    });
+
+    // 2. Calculer les montants
+    let totalTaxes = 0;
+    const taxesDetail = taxesApplicables.map(taxe => {
+        const montantTaxe = (Number(montant_hors_taxe) * parseFloat(taxe.taux)) / 100;
+        totalTaxes += montantTaxe;
+        return {
+            idtaxe: taxe.idtaxe,
+            denomination: taxe.denomination,
+            abrege: taxe.abrege,
+            taux: taxe.taux,
+            montant: montantTaxe.toFixed(2)
+        };
+    });
+
+    // 3. Préparer la réponse
+    const response = {
+        montant_hors_taxe: Number(montant_hors_taxe).toFixed(2),
+        taxes_detail: taxesDetail,
+        total_taxes: totalTaxes.toFixed(2),
+        montant_ttc: (Number(montant_hors_taxe) + totalTaxes).toFixed(2)
+    };
+
+    res.json(response);
 });

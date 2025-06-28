@@ -91,7 +91,7 @@ const BookingsListPage = () => {
                 </div>
                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <Tag size={16} className="text-green-500" />
-                  <strong>Montant du dépôt payé :</strong> {Number(booking.montantttc).toFixed(2)} $
+                  <strong>Montant du dépôt payé :</strong> 50 $
                 </div>
               </div>
               <div className="mt-4 text-right">

@@ -4,7 +4,7 @@
  * Gère toutes les opérations liées aux réservations : CRUD, statistiques, orchestration de paiement.
  * 
  * Dépendances :
- * - Modèles Sequelize (Reservation, Client, Vehicule, Paiement, Succursale)
+ * - Modèles Sequelize (Reservation, Client, Vehicule, Paiement, Succursale, TaxesReservation)
  * - Stripe (paiement)
  * - Axios (appels inter-services)
  * 
@@ -17,6 +17,7 @@ const {
   Vehicule,
   Paiement,
   Succursale,
+  TaxesReservation,
 } = require("../models");
 
 const Stripe = require("stripe");
@@ -26,6 +27,8 @@ const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
 const axios = require('axios');
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3000';
+const { differenceInDays } = require('date-fns');
+const sequelize = require("../config/database");
 
 /**
  * Récupère toutes les réservations.
@@ -316,164 +319,165 @@ exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
 // reservation-service/controllers/reservationController.js
 
 // --- FONCTION D'ORCHESTRATION DU PAIEMENT ---
+// --- FONCTION D'ORCHESTRATION DU PAIEMENT (MODIFIÉE) ---
 exports.initiateCheckout = asyncHandler(async (req, res) => {
     console.log("--- [Reservation-Service] Début de initiateCheckout ---");
+    console.log("[initiateCheckout] Body reçu:", req.body);
     try {
-        const { idvehicule, datedebut, datefin, idclient } = req.body;
-        console.log("1. Données reçues:", { idvehicule, datedebut, datefin, idclient });
+        const { idvehicule, datedebut, datefin, idclient, idsuccursalelivraison } = req.body;
 
-        if (!idvehicule || !datedebut || !datefin || !idclient) {
-            throw new Error("Données de réservation manquantes (véhicule, dates ou client).");
-        }
-
-        // Étape 1 : Récupérer les détails complets du véhicule via la Gateway
-        console.log(`2. Appel à ${GATEWAY_URL}/vehicules/${idvehicule}`);
-        const vehiculeResponse = await axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`);
+        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/vehicules/${idvehicule}`);
+        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/succursales/${idsuccursalelivraison}`);
+        const [vehiculeResponse, succursaleDepartResponse] = await Promise.all([
+            axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`),
+            axios.get(`${GATEWAY_URL}/succursales/${idsuccursalelivraison}`)
+        ]);
         const vehicule = vehiculeResponse.data;
+        console.log('vehicule:', vehicule);
+        const succursaleDepart = succursaleDepartResponse.data;
+        console.log("[initiateCheckout] Succursale de départ:", succursaleDepart);
 
-        if (!vehicule || !vehicule.tarifjournalier) {
-            throw new Error("Impossible de récupérer les détails ou le tarif du véhicule.");
-        }
-        console.log("3. Véhicule récupéré avec succès.");
-
-        // Étape 2 : Calculer le prix de la location (sans taxes pour le moment)
-        const nbJours = Math.max(1, new Date(datefin).getDate() - new Date(datedebut).getDate());
+        // Vérification des dates
+        console.log(`[initiateCheckout] datedebut: ${datedebut}, datefin: ${datefin}`);
+        const nbJours = Math.max(1, differenceInDays(new Date(datefin), new Date(datedebut)));
+        console.log(`[initiateCheckout] Nombre de jours calculé: ${nbJours}`);
         const montantTotalLocation = nbJours * vehicule.tarifjournalier;
-        console.log(`4. Calcul du prix: ${nbJours} jours * ${vehicule.tarifjournalier}$ = ${montantTotalLocation}$`);
+        console.log(`[initiateCheckout] Montant total location (hors taxes): ${montantTotalLocation}`);
 
-        // Étape 3 : Définir le montant du dépôt
-        const MONTANT_DEPOT_EN_CENTIMES = 50 * 100;
-
-        // Étape 4 : Préparer et appeler le service de paiement
-        const payloadPaiement = {
-            amount: MONTANT_DEPOT_EN_CENTIMES,
-            currency: 'cad',
-            metadata: { idclient, idvehicule, montantTotalEstime: montantTotalLocation.toFixed(2) }
+        // ✅ 3. APPEL AU SERVICE DE TAXES
+        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/taxes/calculate avec pays=${succursaleDepart.pays}, province=${succursaleDepart.province}, montant_hors_taxe=${montantTotalLocation}`);
+        const taxeResponse = await axios.post(`${GATEWAY_URL}/taxes/calculate`, {
+            pays: succursaleDepart.pays,
+            province: succursaleDepart.province,
+            montant_hors_taxe: montantTotalLocation
+        });
+        const taxeInfo = taxeResponse.data;
+        console.log("[initiateCheckout] Réponse taxe:", taxeInfo);
+        
+        // ... (logique de paiement Stripe...)
+        console.log("[initiateCheckout] Appel à Stripe pour créer l'intention de paiement...");
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(Number(taxeInfo.montant_ttc) * 100), // Stripe attend des centimes
+            currency: 'cad', // ou 'usd'
+            metadata: {
+                idclient,
+                idvehicule,
+                // autres infos utiles
+            }
+        });
+        const paiementIntentResponse = {
+            data: {
+                clientSecret: paymentIntent.client_secret,
+                idintentstripe: paymentIntent.id,
+            }
         };
-        console.log("5. Appel à /paiements/intent avec:", payloadPaiement);
-        const paiementIntentResponse = await axios.post(`${GATEWAY_URL}/paiements/intent`, payloadPaiement);
-        console.log("6. Réponse du service de paiement reçue.");
+        console.log("[initiateCheckout] Réponse Stripe:", paiementIntentResponse.data);
 
-        if (!paiementIntentResponse.data || !paiementIntentResponse.data.clientSecret) {
-            throw new Error("La réponse du service de paiement est invalide.");
-        }
-
-        // Étape 5 : Renvoyer la réponse complète et bien formée au frontend
+        // ✅ 4. ON ENRICHIT LE RECAP AVEC LES TAXES ET TOUTES LES INFOS ATTENDUES
         const responsePayload = {
             clientSecret: paiementIntentResponse.data.clientSecret,
             idintentstripe: paiementIntentResponse.data.idintentstripe,
             recap: {
-                montantTotalLocation: montantTotalLocation.toFixed(2),
-                montantDepot: (50.00).toFixed(2),
-                taxes: (0.00).toFixed(2), // On met 0 en attendant de réactiver le service
-                montantTTC: montantTotalLocation.toFixed(2), // TTC = HT pour l'instant
+                vehicule, // Objet complet du véhicule
+                succursaleDepart, // Objet complet de la succursale de départ
+                datedebut,
+                datefin,
                 nbJours,
-                vehicule,
+                montantTotalLocation: taxeInfo.montant_hors_taxe,
+                taxes_detail: taxeInfo.taxes_detail,
+                total_taxes: taxeInfo.total_taxes,
+                montantTTC: taxeInfo.montant_ttc,
+                
+                // Ajoute ici d'autres champs si besoin (ex: montantDepot)
             }
         };
-        console.log("7. Envoi de la réponse finale au frontend.");
+        console.log("[initiateCheckout] Payload de réponse:", responsePayload);
         res.json(responsePayload);
 
     } catch (error) {
-        console.error("--- ERREUR DANS initiateCheckout ---");
-        // Log détaillé de l'erreur pour le débogage
+        console.error("[initiateCheckout] ERREUR:", error && error.stack ? error.stack : error);
         if (error.response) {
-            console.error('Erreur de réponse d\'un service appelé:', { 
-                status: error.response.status, 
-                data: error.response.data 
-            });
-        } else {
-            console.error('Erreur générale:', error.message);
+            console.error("[initiateCheckout] Erreur Axios:", error.response.status, error.response.data);
+        } else if (error.request) {
+            console.error("[initiateCheckout] Aucune réponse reçue (Axios):", error.request);
         }
-        res.status(500).json({ message: "Une erreur interne est survenue lors de l'initialisation du paiement." });
+        res.status(500).json({ message: "Erreur lors de l'initiation du paiement.", error: error.message });
     }
 });
 
 
-// --- VOS AUTRES FONCTIONS (CRUD, STATS, etc.) ---
-// (Le reste de votre fichier peut rester tel quel)
-// ...
-
-/**
- * [ORCHESTRATION]
- * Finalise la réservation après le paiement du dépôt.
- */
-/**
- * [ORCHESTRATION]
- * Finalise la réservation après le paiement du dépôt.
- */
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (MODIFIÉE) ---
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (SIMPLIFIÉE ET CORRIGÉE) ---
 exports.finalizeReservation = asyncHandler(async (req, res) => {
     console.log("--- [Reservation-Service] Début de finalizeReservation ---");
+    const transaction = await sequelize.transaction();
     
-    let nouvelleReservation; 
-
     try {
         const { idintentstripe, reservationDetails } = req.body;
         
-        if (!idintentstripe || !reservationDetails) {
-            throw new Error("Données de finalisation manquantes.");
-        }
-
+        // 1. Vérifier que le paiement Stripe a réussi
         const paymentIntent = await stripe.paymentIntents.retrieve(idintentstripe);
-        if (paymentIntent.status !== "succeeded") {
-            throw new Error(`Le paiement n'est pas confirmé. Statut : ${paymentIntent.status}`);
+        if (paymentIntent.status !== 'succeeded') {
+            throw new Error(`Le paiement Stripe n'est pas confirmé. Statut: ${paymentIntent.status}`);
         }
         
-        // ✅ CORRECTION : On utilise les bonnes données de réservation
         const details = reservationDetails.reservationData || reservationDetails;
-        
-        // ✅ CORRECTION DÉFINITIVE : ON GÉNÈRE LE NUMÉRO ICI
+        const recap = reservationDetails.recap;
+
         const randomSuffix = Math.floor(1000 + Math.random() * 9000);
         const numeroReservationGenere = `RES-${Date.now()}-${randomSuffix}`;
         
         const reservationData = {
-            numeroreservation: numeroReservationGenere, // On ajoute le numéro qu'on vient de générer
+            numeroreservation: numeroReservationGenere,
             datereservation: new Date(),
             daterdv: new Date(details.datedebut),
             dateretour: new Date(details.datefin),
-            montanttotal: parseFloat(reservationDetails.recap.montantTotalLocation),
-            taxes: 0.00,
-            montantttc: 50.00,
-            statut: 'En attente',
+            montanttotal: parseFloat(recap.montantTotalLocation),
+            taxes: parseFloat(recap.total_taxes),
+            montantttc: parseFloat(recap.montantTTC),
+            statut: 'Confirmée',
             idclient: parseInt(details.idclient, 10),
             idsuccursalelivraison: parseInt(details.idsuccursalelivraison, 10),
             idsuccursaleretour: parseInt(details.idsuccursaleretour, 10),
             idvehicule: parseInt(details.idvehicule, 10),
         };
         
-        console.log("Données envoyées à Reservation.create:", reservationData); // Log de débogage
+        // 2. Créer la réservation dans la transaction
+        const nouvelleReservation = await Reservation.create(reservationData, { transaction });
+        console.log(`[finalizeReservation] Réservation ${nouvelleReservation.idreservation} créée.`);
+
+        // 3. Enregistrer le détail des taxes dans la transaction
+        if (recap.taxes_detail && recap.taxes_detail.length > 0) {
+            const taxesToCreate = recap.taxes_detail.map(taxe => ({
+                idreservation: nouvelleReservation.idreservation,
+                idtaxe: taxe.idtaxe
+            }));
+            await TaxesReservation.bulkCreate(taxesToCreate, { transaction });
+            console.log(`[finalizeReservation] Taxes enregistrées pour la réservation ${nouvelleReservation.idreservation}.`);
+        }
         
-        nouvelleReservation = await Reservation.create(reservationData);
-        console.log(`Réservation ${nouvelleReservation.idreservation} créée. Tentative d'enregistrement du paiement...`);
+        // 4. Valider la transaction (Commit)
+        await transaction.commit();
 
-        const paiementPayload = {
-            idintentstripe,
-            montant: 50.00,
-            
-            idreservation: nouvelleReservation.idreservation,
-            modepaiement: 'card',
-        };
-        await axios.post(`${GATEWAY_URL}/paiements/enregistrer`, paiementPayload);
-        console.log("Paiement enregistré pour la réservation " + nouvelleReservation.idreservation);
-
+        // 5. Renvoyer la nouvelle réservation au frontend.
+        //    Le frontend l'utilisera sur la page de confirmation.
         res.status(201).json({
-            message: "Dépôt payé et réservation confirmée avec succès !",
-            reservation: nouvelleReservation
+            message: "Réservation créée avec succès !",
+            reservation: {
+                ...nouvelleReservation.toJSON(),
+                // On enrichit avec des infos utiles pour l'affichage de confirmation
+                marque: recap.vehicule.marque,
+                modele: recap.vehicule.modele,
+            }
         });
 
     } catch (error) {
-        console.error("--- ERREUR DANS finalizeReservation ---");
-        
-        if (nouvelleReservation) {
-            console.error(`L'enregistrement du paiement a échoué. Annulation de la réservation ${nouvelleReservation.idreservation}...`);
-            await nouvelleReservation.destroy();
-            console.error("Réservation annulée.");
-        }
-        
-        console.error('Erreur détaillée:', error);
-        res.status(500).json({ message: "Une erreur interne est survenue, la réservation a été annulée." });
+        await transaction.rollback();
+        console.error("--- ERREUR DANS finalizeReservation ---", error);
+        res.status(500).json({ message: "Une erreur interne est survenue, la réservation a été annulée.", error: error.message });
     }
 });
+
 
 
 

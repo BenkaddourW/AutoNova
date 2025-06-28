@@ -80,7 +80,9 @@ const BookingDetailPage = () => {
              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
                 <DetailItem label="Sous-total">{Number(booking.montanttotal).toFixed(2)} $</DetailItem>
                 <DetailItem label="Taxes">{Number(booking.taxes).toFixed(2)} $</DetailItem>
-                <DetailItem label="Montant du dépôt payé">{Number(booking.montantttc).toFixed(2)} $</DetailItem>
+                <DetailItem label="Montant a payé">{Number(booking.montantttc).toFixed(2)} $</DetailItem>
+                <DetailItem label="Montant du dépôt payé">50 $</DetailItem>
+                <DetailItem label="Montant restant à payer">{(Number(booking.montantttc) - Number(50)).toFixed(2)} $</DetailItem>
              </dl>
         </div>
 

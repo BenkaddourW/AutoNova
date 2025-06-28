@@ -6,6 +6,7 @@ const { createTaxeRules, updateTaxeRules } = require('../validators/taxeValidato
 
 
 
+router.post('/calculate', taxeController.calculateTaxes);
 router.get('/by-localite', taxeController.getTaxesByLocalite);
 
 router.get('/', taxeController.getTaxes);
