@@ -64,3 +64,18 @@ export const updateReservation = async (id, data) => {
     throw error;
   }
 };
+
+export async function getReservationFullDetails(id, token) {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_RESERVATIONS_URL}/${id}/full-details`,
+    {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    }
+  );
+  if (!response.ok)
+    throw new Error("Erreur lors de la récupération des détails");
+  console.log("Response:", response);
+  return await response.json();
+}

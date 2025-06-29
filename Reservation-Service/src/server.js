@@ -40,7 +40,7 @@ consul.agent.service.register(
     port: Number(PORT),
     check: {
       http: `http://localhost:${PORT}/health`,
-      interval: "10s",
+      interval: "20s",
     },
   },
   (err) => {

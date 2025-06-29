@@ -33,4 +33,12 @@ const Taxe = sequelize.define(
   }
 );
 
+// Association avec TaxesContrat
+Taxe.associate = (models) => {
+  Taxe.hasMany(models.TaxesContrat, {
+    foreignKey: "idtaxe",
+    as: "taxesContrat",
+  });
+};
+
 module.exports = Taxe;

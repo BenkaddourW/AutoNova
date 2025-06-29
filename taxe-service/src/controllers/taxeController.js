@@ -1,6 +1,49 @@
-const { Taxe, TaxeLocalite } = require("../models");
+const sequelize = require("../config/database");
+const Taxe = require("../models/taxe");
+const TaxeLocalite = require("../models/taxe_localite");
+const TaxesContrat = require("../models/taxe_contrat")(
+  sequelize,
+  require("sequelize").DataTypes
+);
 const asyncHandler = require("express-async-handler");
 const { Op } = require("sequelize");
+const TaxesReservation = require("../models/taxe_reservation")(
+  sequelize,
+  require("sequelize").DataTypes
+);
+TaxesReservation.belongsTo(Taxe, { foreignKey: "idtaxe", as: "taxe" });
+TaxesContrat.belongsTo(Taxe, { foreignKey: "idtaxe", as: "taxe" });
+
+/**
+ * @desc Enregistre les taxes associées à un contrat
+ * @route POST /api/taxes-contrat
+ * @access Service interne
+ * Body: [{ idcontrat, idtaxe, taux, denomination, montant }]
+ */
+exports.createTaxesContrat = asyncHandler(async (req, res) => {
+  try {
+    const taxes = req.body;
+    if (!Array.isArray(taxes) || taxes.length === 0) {
+      return res.status(400).json({ message: "Aucune taxe à enregistrer" });
+    }
+    // Adapter les champs pour correspondre à la table
+    const taxesToInsert = taxes.map((taxe) => ({
+      idcontrat: taxe.idcontrat,
+      idtaxe: taxe.idtaxe,
+      denomination_appliquee: taxe.denomination,
+      abrege_applique: taxe.abrege,
+      taux_applique: taxe.taux,
+      montant_taxe: taxe.montant,
+    }));
+    const result = await TaxesContrat.bulkCreate(taxesToInsert);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Erreur bulkCreate taxes_contrat :", error);
+    res
+      .status(500)
+      .json({ message: "Erreur lors de l'enregistrement des taxes contrat" });
+  }
+});
 
 /** * @desc Récupère toutes les taxes, avec option de recherche par dénomination ou abréviation
  * @route GET /api/taxes   * @access Public
@@ -136,4 +179,63 @@ exports.getTaxeById = asyncHandler(async (req, res) => {
     throw new Error("Taxe non trouvée");
   }
   res.json(taxe);
+});
+
+/**
+ * @desc Récupère les taxes appliquées à une réservation
+ * @route GET /api/taxes/by-reservation/:id
+ * @access Public
+ */
+exports.getTaxesByReservationId = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const taxesReservation = await TaxesReservation.findAll({
+    where: { idreservation: id },
+    include: [
+      {
+        model: Taxe,
+        as: "taxe",
+        attributes: ["idtaxe", "denomination", "abrege", "taux"],
+      },
+    ],
+  });
+
+  const taxes = taxesReservation.map((tr) => ({
+    idtaxe: tr.taxe.idtaxe,
+    denomination: tr.taxe.denomination,
+    abrege: tr.taxe.abrege,
+    taux: tr.taxe.taux,
+  }));
+
+  res.json(taxes);
+});
+
+/**
+ * @desc Récupère les taxes appliquées à un contrat
+ * @route GET /api/taxes/by-contrat/:id
+ * @access Public
+ */
+exports.getTaxesByContratId = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const taxesContrat = await TaxesContrat.findAll({
+    where: { idcontrat: id },
+    include: [
+      {
+        model: Taxe,
+        as: "taxe",
+        attributes: ["idtaxe", "denomination", "abrege", "taux"],
+      },
+    ],
+  });
+
+  const taxes = taxesContrat.map((tc) => ({
+    idtaxe: tc.taxe.idtaxe,
+    denomination: tc.taxe.denomination,
+    abrege: tc.taxe.abrege,
+    taux: tc.taxe.taux,
+    montant: tc.montant_taxe,
+  }));
+
+  res.json(taxes);
 });

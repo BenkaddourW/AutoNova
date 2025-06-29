@@ -26,6 +26,9 @@ router.get("/", isEmployeOrAdmin, contratController.listerContrats);
 // Client : lister ses propres contrats
 router.get("/mes-contrats", isClient, contratController.listerContratsClient);
 
+// Route pour obtenir un contrat par ID
+router.get("/:id", isEmployeOrAdmin, contratController.getContratById);
+
 // router.put("/:id", isEmployeOrAdmin, contratController.modifierContrat);
 // router.delete("/:id", isEmployeOrAdmin, contratController.supprimerContrat);
 

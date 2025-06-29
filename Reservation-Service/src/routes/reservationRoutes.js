@@ -1,11 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const reservationController = require("../controllers/reservationController");
+const authenticateToken = require("../middlewares/authMiddleware");
 const {
   createReservationRules,
   updateReservationRules,
 } = require("../validators/reservationValidator");
 const validate = require("../middlewares/validate");
+const authorizeRole = require("../middlewares/middlewareAuthorizeRole");
 
 // --- Routes pour les statistiques du Dashboard ---
 router.get(
@@ -44,6 +46,8 @@ router.delete("/:id", reservationController.deleteReservation);
 
 router.get(
   "/:id/full-details",
+  authenticateToken, // Authentification JWT
+  authorizeRole("admin", "employe"), // Autorisation par rôle
   reservationController.getReservationFullDetails
 );
 

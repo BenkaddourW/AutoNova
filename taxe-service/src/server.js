@@ -41,7 +41,7 @@ consul.agent.service.register(
     port: parseInt(PORT, 10),
     check: {
       http: `http://${process.env.SERVICE_HOST || "localhost"}:${PORT}/health`,
-      interval: "10s",
+      interval: "20s",
       timeout: "5s",
     },
   },

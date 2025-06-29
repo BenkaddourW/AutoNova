@@ -7,6 +7,7 @@ const Paiement = require("../models/paiement");
 const Succursale = require("../models/succursale");
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
+const axios = require("axios");
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3000";
 async function verifyForeignKeys(body) {
   const {
@@ -760,6 +761,8 @@ exports.getMyReservationById = asyncHandler(async (req, res) => {
 //Fonction pour recuperer une reservation avec tous ses details
 exports.getReservationFullDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const authHeader = req.headers["authorization"]; // Récupère le token du frontend
+  const options = { headers: { Authorization: authHeader } };
   try {
     // 1. Récupérer la réservation
     const reservation = await Reservation.findByPk(id, { raw: true });
@@ -769,7 +772,8 @@ exports.getReservationFullDetails = asyncHandler(async (req, res) => {
 
     // 2. Récupérer le client
     const clientResponse = await axios.get(
-      `${GATEWAY_URL}/clients/${reservation.idclient}`
+      `${GATEWAY_URL}/clients/${reservation.idclient}`,
+      options
     );
     const client = clientResponse.data;
 
@@ -797,13 +801,19 @@ exports.getReservationFullDetails = asyncHandler(async (req, res) => {
       );
       inspection = inspectionResponse.data;
     } catch (e) {
-      // Pas d'inspection trouvée ou service indisponible, ce n'est pas bloquant
       inspection = null;
     }
 
-    // 6. Récupérer les taxes (si besoin)
-    // const taxesResponse = await axios.get(`${GATEWAY_URL}/taxes/by-reservation/${id}`);
-    // const taxes = taxesResponse.data;
+    // 6. Récupérer les taxes appliquées à la réservation
+    let taxes = [];
+    try {
+      const taxesResponse = await axios.get(
+        `${GATEWAY_URL}/taxes/by-reservation/${id}`
+      );
+      taxes = taxesResponse.data;
+    } catch (e) {
+      taxes = [];
+    }
 
     // 7. Retourner l'objet agrégé
     res.json({
@@ -813,15 +823,13 @@ exports.getReservationFullDetails = asyncHandler(async (req, res) => {
       SuccursaleLivraison: succursaleLivraison,
       SuccursaleRetour: succursaleRetour,
       Inspection: inspection,
-      // Taxes: taxes,
+      Taxes: taxes, // <-- Ajout ici
     });
   } catch (error) {
     console.error("Erreur d'agrégation:", error.message);
-    res
-      .status(500)
-      .json({
-        message: "Erreur lors de l'agrégation des données.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur lors de l'agrégation des données.",
+      error: error.message,
+    });
   }
 });

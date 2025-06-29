@@ -201,3 +201,19 @@ app.use("/succursales", (req, res, next) => {
     proxy(req, res, next);
   });
 });
+
+// Route pour le service taxe
+app.use("/taxes", (req, res, next) => {
+  getServiceUrl("taxe-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service taxe-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/taxes" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});
