@@ -107,45 +107,82 @@ exports.deleteReservation = asyncHandler(async (req, res) => {
  * @body {string} datefin - Date de fin
  * @returns {Array} IDs des véhicules disponibles
  */
-exports.getDisponibilites = asyncHandler(async (req, res) => {
-    const { idsvehicules, datedebut, datefin } = req.body;
+// exports.getDisponibilites = asyncHandler(async (req, res) => {
+//     const { idsvehicules, datedebut, datefin } = req.body;
     
-    // La validation des paramètres est une bonne pratique.
-    if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
-      res.status(400); // Bad Request
-      throw new Error("Les paramètres 'idsvehicules', 'datedebut' et 'datefin' sont requis et doivent être valides.");
-    }
+//     // La validation des paramètres est une bonne pratique.
+//     if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
+//       res.status(400); // Bad Request
+//       throw new Error("Les paramètres 'idsvehicules', 'datedebut' et 'datefin' sont requis et doivent être valides.");
+//     }
 
-    // Recherche des réservations qui se chevauchent avec la période demandée.
+//     // Recherche des réservations qui se chevauchent avec la période demandée.
+//     const reservations = await Reservation.findAll({
+//       where: {
+//         idvehicule: { [Op.in]: idsvehicules },
+//         [Op.or]: [
+//           { // Une réservation existante commence avant et se termine après la période demandée (englobante).
+//             daterdv: { [Op.lte]: datefin },
+//             dateretour: { [Op.gte]: datedebut },
+//           },
+//           { // Une réservation existante commence pendant la période demandée.
+//             daterdv: { [Op.between]: [datedebut, datefin] },
+//           },
+//           { // Une réservation existante se termine pendant la période demandée.
+//             dateretour: { [Op.between]: [datedebut, datefin] },
+//           },
+//         ],
+//       },
+//     });
+
+//     // On crée un Set des IDs des véhicules déjà réservés pour une recherche efficace.
+//     const indisponiblesIds = new Set(reservations.map((r) => r.idvehicule));
+    
+//     // On filtre la liste initiale des IDs pour ne garder que ceux qui ne sont pas dans le Set des indisponibles.
+//     const disponibles = idsvehicules.filter(
+//       (id) => !indisponiblesIds.has(id)
+//     );
+
+//     res.json({ disponibles });
+// });
+// / Vérifie la disponibilité d'une liste de véhicules pour une période donnée
+exports.getDisponibilites = async (req, res) => {
+  try {
+    const { idsvehicules, datedebut, datefin } = req.body;
+    console.log("BODY RECU:", req.body);
+    if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
+      return res
+        .status(400)
+        .json({ message: "Paramètres manquants ou invalides." });
+    }
+ 
+    // Cherche les réservations qui chevauchent la période pour ces véhicules
     const reservations = await Reservation.findAll({
       where: {
         idvehicule: { [Op.in]: idsvehicules },
-        [Op.or]: [
-          { // Une réservation existante commence avant et se termine après la période demandée (englobante).
-            daterdv: { [Op.lte]: datefin },
-            dateretour: { [Op.gte]: datedebut },
-          },
-          { // Une réservation existante commence pendant la période demandée.
-            daterdv: { [Op.between]: [datedebut, datefin] },
-          },
-          { // Une réservation existante se termine pendant la période demandée.
-            dateretour: { [Op.between]: [datedebut, datefin] },
-          },
-        ],
+        daterdv: { [Op.lte]: datefin },
+        dateretour: { [Op.gte]: datedebut },
+        statut: { [Op.notIn]: ["Annulée", "Terminée"] },
       },
     });
-
-    // On crée un Set des IDs des véhicules déjà réservés pour une recherche efficace.
-    const indisponiblesIds = new Set(reservations.map((r) => r.idvehicule));
-    
-    // On filtre la liste initiale des IDs pour ne garder que ceux qui ne sont pas dans le Set des indisponibles.
+ 
+    // Liste des véhicules réservés sur la période
+    const indisponibles = reservations.map((r) => r.idvehicule);
+ 
+    // Filtre les véhicules disponibles
     const disponibles = idsvehicules.filter(
-      (id) => !indisponiblesIds.has(id)
+      (id) => !indisponibles.includes(id)
     );
-
+ 
     res.json({ disponibles });
-});
-
+  } catch (err) {
+    console.error("Erreur Sequelize:", err);
+    res.status(400).json({
+      message: "Erreur lors de la vérification des disponibilités.",
+      error: err.message,
+    });
+  }
+};
 
 // === FONCTIONS POUR LE DASHBOARD ===
 
@@ -320,164 +357,158 @@ exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
 
 // --- FONCTION D'ORCHESTRATION DU PAIEMENT ---
 // --- FONCTION D'ORCHESTRATION DU PAIEMENT (MODIFIÉE) ---
+// / --- FONCTION D'ORCHESTRATION DU PAIEMENT (MODIFIÉE) ---
 exports.initiateCheckout = asyncHandler(async (req, res) => {
     console.log("--- [Reservation-Service] Début de initiateCheckout ---");
-    console.log("[initiateCheckout] Body reçu:", req.body);
-    try {
-        const { idvehicule, datedebut, datefin, idclient, idsuccursalelivraison } = req.body;
+    const { idvehicule, datedebut, datefin, idclient, idsuccursalelivraison, idsuccursaleretour } = req.body;
 
-        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/vehicules/${idvehicule}`);
-        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/succursales/${idsuccursalelivraison}`);
-        const [vehiculeResponse, succursaleDepartResponse] = await Promise.all([
-            axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`),
-            axios.get(`${GATEWAY_URL}/succursales/${idsuccursalelivraison}`)
-        ]);
-        const vehicule = vehiculeResponse.data;
-        console.log('vehicule:', vehicule);
-        const succursaleDepart = succursaleDepartResponse.data;
-        console.log("[initiateCheckout] Succursale de départ:", succursaleDepart);
+    const [vehiculeResponse, succursaleDepartResponse] = await Promise.all([
+        axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`),
+        axios.get(`${GATEWAY_URL}/succursales/${idsuccursalelivraison}`)
+    ]);
+    const vehicule = vehiculeResponse.data;
+    const succursaleDepart = succursaleDepartResponse.data;
 
-        // Vérification des dates
-        console.log(`[initiateCheckout] datedebut: ${datedebut}, datefin: ${datefin}`);
-        const nbJours = Math.max(1, differenceInDays(new Date(datefin), new Date(datedebut)));
-        console.log(`[initiateCheckout] Nombre de jours calculé: ${nbJours}`);
-        const montantTotalLocation = nbJours * vehicule.tarifjournalier;
-        console.log(`[initiateCheckout] Montant total location (hors taxes): ${montantTotalLocation}`);
+    const nbJours = Math.max(1, differenceInDays(new Date(datefin), new Date(datedebut)));
+    const montantTotalLocation = nbJours * vehicule.tarifjournalier;
 
-        // ✅ 3. APPEL AU SERVICE DE TAXES
-        console.log(`[initiateCheckout] Appel à ${GATEWAY_URL}/taxes/calculate avec pays=${succursaleDepart.pays}, province=${succursaleDepart.province}, montant_hors_taxe=${montantTotalLocation}`);
-        const taxeResponse = await axios.post(`${GATEWAY_URL}/taxes/calculate`, {
-            pays: succursaleDepart.pays,
-            province: succursaleDepart.province,
-            montant_hors_taxe: montantTotalLocation
-        });
-        const taxeInfo = taxeResponse.data;
-        console.log("[initiateCheckout] Réponse taxe:", taxeInfo);
-        
-        // ... (logique de paiement Stripe...)
-        console.log("[initiateCheckout] Appel à Stripe pour créer l'intention de paiement...");
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(Number(taxeInfo.montant_ttc) * 100), // Stripe attend des centimes
-            currency: 'cad', // ou 'usd'
-            metadata: {
-                idclient,
-                idvehicule,
-                // autres infos utiles
-            }
-        });
-        const paiementIntentResponse = {
-            data: {
-                clientSecret: paymentIntent.client_secret,
-                idintentstripe: paymentIntent.id,
-            }
-        };
-        console.log("[initiateCheckout] Réponse Stripe:", paiementIntentResponse.data);
-
-        // ✅ 4. ON ENRICHIT LE RECAP AVEC LES TAXES ET TOUTES LES INFOS ATTENDUES
-        const responsePayload = {
-            clientSecret: paiementIntentResponse.data.clientSecret,
-            idintentstripe: paiementIntentResponse.data.idintentstripe,
-            recap: {
-                vehicule, // Objet complet du véhicule
-                succursaleDepart, // Objet complet de la succursale de départ
-                datedebut,
-                datefin,
-                nbJours,
-                montantTotalLocation: taxeInfo.montant_hors_taxe,
-                taxes_detail: taxeInfo.taxes_detail,
-                total_taxes: taxeInfo.total_taxes,
-                montantTTC: taxeInfo.montant_ttc,
-                
-                // Ajoute ici d'autres champs si besoin (ex: montantDepot)
-            }
-        };
-        console.log("[initiateCheckout] Payload de réponse:", responsePayload);
-        res.json(responsePayload);
-
-    } catch (error) {
-        console.error("[initiateCheckout] ERREUR:", error && error.stack ? error.stack : error);
-        if (error.response) {
-            console.error("[initiateCheckout] Erreur Axios:", error.response.status, error.response.data);
-        } else if (error.request) {
-            console.error("[initiateCheckout] Aucune réponse reçue (Axios):", error.request);
+    const taxeResponse = await axios.post(`${GATEWAY_URL}/taxes/calculate`, {
+        pays: succursaleDepart.pays,
+        province: succursaleDepart.province,
+        montant_hors_taxe: montantTotalLocation
+    });
+    const taxeInfo = taxeResponse.data;
+    
+    // ✅ CORRECTION 1: On stocke les IDs critiques dans les métadonnées de Stripe
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(Number(taxeInfo.montant_ttc) * 100),
+        currency: 'cad',
+        metadata: {
+            idclient: idclient,
+            idvehicule: idvehicule,
+            idsuccursalelivraison: idsuccursalelivraison,
+            idsuccursaleretour: idsuccursaleretour
         }
-        res.status(500).json({ message: "Erreur lors de l'initiation du paiement.", error: error.message });
-    }
+    });
+    console.log(`[LOG] Métadonnées Stripe créées avec idclient: ${idclient}, idvehicule: ${idvehicule}`);
+
+    const responsePayload = {
+        clientSecret: paymentIntent.client_secret,
+        idintentstripe: paymentIntent.id,
+        recap: { // Cet objet sert principalement à l'affichage sur la page de paiement
+            vehicule,
+            succursaleDepart,
+            datedebut,
+            datefin,
+            nbJours,
+            montantTotalLocation: taxeInfo.montant_hors_taxe,
+            taxes_detail: taxeInfo.taxes_detail,
+            total_taxes: taxeInfo.total_taxes,
+            montantTTC: taxeInfo.montant_ttc,
+        },
+        // On passe aussi les données brutes pour que le frontend les stocke dans la session
+        reservationData: req.body 
+    };
+    res.json(responsePayload);
 });
 
 
-// --- FONCTION DE FINALISATION DE LA RÉSERVATION (MODIFIÉE) ---
-// --- FONCTION DE FINALISATION DE LA RÉSERVATION (SIMPLIFIÉE ET CORRIGÉE) ---
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (MODIFIÉE ET ROBUSTE) ---
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (VERSION FINALE AVEC GESTION DE LA RACE CONDITION) ---
 exports.finalizeReservation = asyncHandler(async (req, res) => {
     console.log("--- [Reservation-Service] Début de finalizeReservation ---");
+    const { idintentstripe, reservationDetails } = req.body;
+
+    if (!idintentstripe) {
+        return res.status(400).json({ message: "L'identifiant de paiement est manquant." });
+    }
+
+    // On lance une transaction pour garantir que tout est créé, ou rien.
     const transaction = await sequelize.transaction();
-    
+    console.log(`[LOG] Transaction démarrée pour l'intent ${idintentstripe}`);
+
     try {
-        const { idintentstripe, reservationDetails } = req.body;
+        // On ne fait plus de vérification préalable. On essaie directement de créer.
+        // La base de données nous protègera contre les doublons grâce à la contrainte UNIQUE.
         
-        // 1. Vérifier que le paiement Stripe a réussi
         const paymentIntent = await stripe.paymentIntents.retrieve(idintentstripe);
         if (paymentIntent.status !== 'succeeded') {
-            throw new Error(`Le paiement Stripe n'est pas confirmé. Statut: ${paymentIntent.status}`);
+            await transaction.rollback();
+            return res.status(400).json({ message: `Le paiement n'a pas réussi. Statut: ${paymentIntent.status}`});
         }
         
-        const details = reservationDetails.reservationData || reservationDetails;
         const recap = reservationDetails.recap;
+        const metadata = paymentIntent.metadata;
 
-        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-        const numeroReservationGenere = `RES-${Date.now()}-${randomSuffix}`;
-        
+        if (!recap || !metadata) {
+            throw new Error("Données de réservation ou métadonnées de paiement manquantes.");
+        }
+
+        const numeroReservationGenere = `RES-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
         const reservationData = {
             numeroreservation: numeroReservationGenere,
             datereservation: new Date(),
-            daterdv: new Date(details.datedebut),
-            dateretour: new Date(details.datefin),
+            daterdv: new Date(recap.datedebut),
+            dateretour: new Date(recap.datefin),
             montanttotal: parseFloat(recap.montantTotalLocation),
             taxes: parseFloat(recap.total_taxes),
             montantttc: parseFloat(recap.montantTTC),
             statut: 'Confirmée',
-            idclient: parseInt(details.idclient, 10),
-            idsuccursalelivraison: parseInt(details.idsuccursalelivraison, 10),
-            idsuccursaleretour: parseInt(details.idsuccursaleretour, 10),
-            idvehicule: parseInt(details.idvehicule, 10),
+            idclient: parseInt(metadata.idclient, 10),
+            idsuccursalelivraison: parseInt(metadata.idsuccursalelivraison, 10),
+            idsuccursaleretour: parseInt(metadata.idsuccursaleretour, 10),
+            idvehicule: parseInt(metadata.idvehicule, 10),
         };
-        
-        // 2. Créer la réservation dans la transaction
-        const nouvelleReservation = await Reservation.create(reservationData, { transaction });
-        console.log(`[finalizeReservation] Réservation ${nouvelleReservation.idreservation} créée.`);
 
-        // 3. Enregistrer le détail des taxes dans la transaction
+        const nouvelleReservation = await Reservation.create(reservationData, { transaction });
+        console.log(`[SUCCÈS] Réservation ID ${nouvelleReservation.idreservation} créée dans la transaction.`);
+
+        const paiementData = {
+            datepaiement: new Date(),
+            montant: parseFloat(recap.montantTTC),
+            typepaiement: 'paiement',
+            modepaiement: paymentIntent.payment_method_types[0] || 'card',
+            idreservation: nouvelleReservation.idreservation,
+            idintentstripe: idintentstripe,
+            statutpaiement: 'succeeded',
+            devise: paymentIntent.currency,
+        };
+
+        // L'INSERT qui pourrait échouer à cause de la contrainte UNIQUE
+        await Paiement.create(paiementData, { transaction });
+        console.log(`[SUCCÈS] Paiement lié à la réservation ID ${nouvelleReservation.idreservation} créé dans la transaction.`);
+
         if (recap.taxes_detail && recap.taxes_detail.length > 0) {
-            const taxesToCreate = recap.taxes_detail.map(taxe => ({
-                idreservation: nouvelleReservation.idreservation,
-                idtaxe: taxe.idtaxe
-            }));
+            const taxesToCreate = recap.taxes_detail.map(taxe => ({ idreservation: nouvelleReservation.idreservation, idtaxe: taxe.idtaxe }));
             await TaxesReservation.bulkCreate(taxesToCreate, { transaction });
-            console.log(`[finalizeReservation] Taxes enregistrées pour la réservation ${nouvelleReservation.idreservation}.`);
         }
         
-        // 4. Valider la transaction (Commit)
         await transaction.commit();
+        console.log("[SUCCÈS] Transaction validée avec succès.");
 
-        // 5. Renvoyer la nouvelle réservation au frontend.
-        //    Le frontend l'utilisera sur la page de confirmation.
         res.status(201).json({
             message: "Réservation créée avec succès !",
-            reservation: {
-                ...nouvelleReservation.toJSON(),
-                // On enrichit avec des infos utiles pour l'affichage de confirmation
-                marque: recap.vehicule.marque,
-                modele: recap.vehicule.modele,
-            }
+            reservation: { ...nouvelleReservation.toJSON(), marque: recap.vehicule.marque, modele: recap.vehicule.modele }
         });
 
     } catch (error) {
+        // On annule la transaction
         await transaction.rollback();
-        console.error("--- ERREUR DANS finalizeReservation ---", error);
+
+        // ✅ GESTION SPÉCIFIQUE DE L'ERREUR DE DOUBLON
+        if (error instanceof Sequelize.UniqueConstraintError) {
+            console.warn(`[ATTENTION] Course critique détectée et bloquée par la base de données pour l'intent ${idintentstripe}.`);
+            // On renvoie une réponse positive au frontend pour ne pas afficher d'erreur à l'utilisateur.
+            // La première requête a déjà réussi.
+            return res.status(200).json({ message: "Cette réservation a déjà été enregistrée." });
+        }
+
+        // Pour toutes les autres erreurs
+        console.error("--- ERREUR INATTENDUE DANS finalizeReservation ---", error);
         res.status(500).json({ message: "Une erreur interne est survenue, la réservation a été annulée.", error: error.message });
     }
 });
-
 
 
 

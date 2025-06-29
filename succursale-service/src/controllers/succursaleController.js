@@ -19,7 +19,7 @@ const { Op, Sequelize } = require("sequelize");
 exports.getSuccursales = asyncHandler(async (req, res) => {
     const {
       ids, ville, province, pays, nomsuccursale, codeagence, codepostal,
-      limit = 10, offset = 0,
+      limit = 20, offset = 0,
     } = req.query;
 
     const where = {};

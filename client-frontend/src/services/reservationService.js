@@ -113,3 +113,28 @@ export const initiateCheckout = async (reservationData) => {
     handleError(error);
   }
 };
+
+/**
+ * Finalise une réservation après un paiement réussi.
+ * @param {object} finalizationData - Les données de finalisation (idintentstripe, reservationDetails).
+ * @returns {Promise<object>} La réservation créée.
+ */
+export const finalizeReservation = async (finalizationData) => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error("Vous devez être connecté pour finaliser une réservation.");
+    }
+
+    const response = await apiClient.post('/reservations/finalize', finalizationData, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    return response.data;
+
+  } catch (error) {
+    handleError(error);
+  }
+};

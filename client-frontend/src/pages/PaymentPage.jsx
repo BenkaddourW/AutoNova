@@ -1,4 +1,4 @@
-// src/pages/PaymentPage.jsx (Version Finale avec affichage des taxes et calcul du solde)
+// src/pages/PaymentPage.jsx (Version Finale Corrigée)
 
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -10,7 +10,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Car, Calendar, MapPin } from 'lucide-react';
 
-// Chargement de la clé publique Stripe depuis les variables d'environnement
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const PaymentPage = () => {
@@ -21,33 +20,21 @@ const PaymentPage = () => {
   const [recap, setRecap] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleCheckout = (reservationDetails) => {
+    sessionStorage.setItem('reservationDetails', JSON.stringify(reservationDetails));
+  };
+
   useEffect(() => {
-    let stateData = location.state;
-
-    if (!stateData) {
-      const savedRecapString = sessionStorage.getItem('paymentRecap');
-      if (savedRecapString) {
-        // Logique de récupération depuis sessionStorage si nécessaire
-        try {
-            stateData = JSON.parse(savedRecapString);
-        } catch(e) { console.error(e); }
-      }
-    }
-
-    if (!stateData || !stateData.clientSecret || !stateData.recap) {
+    if (!location.state || !location.state.clientSecret || !location.state.recap) {
       toast.error("Session de paiement invalide ou expirée. Veuillez recommencer.");
       navigate('/');
       return;
     }
-
-    setClientSecret(stateData.clientSecret);
-    setRecap(stateData.recap);
     
-    // On sauvegarde aussi l'objet complet qui inclut le clientSecret pour la robustesse
-    // Note: Dans une application en production, on ne stockerait pas le clientSecret.
-    sessionStorage.setItem('paymentDetails', JSON.stringify(stateData));
-    
+    setClientSecret(location.state.clientSecret);
+    setRecap(location.state.recap);
     setIsLoading(false);
+
   }, [location.state, navigate]);
 
   const stripeOptions = useMemo(() => {
@@ -65,6 +52,11 @@ const PaymentPage = () => {
       </div>
     );
   }
+
+  const reservationDetailsForCheckout = {
+      recap: recap,
+      reservationData: location.state.reservationData
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -102,35 +94,39 @@ const PaymentPage = () => {
             <div className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                 <p className="flex justify-between">
                     <span>Location ({recap.nbJours} jours)</span> 
-                    <span>${recap.montantTotalLocation}</span>
+                    {/* ✅ CORRECTION: On convertit la chaîne en nombre avant d'utiliser toFixed */}
+                    <span>${Number(recap.montantTotalLocation).toFixed(2)}</span>
                 </p>
                 {recap.taxes_detail && recap.taxes_detail.length > 0 && (
                   <div className="pl-4 text-slate-500 dark:text-slate-400">
                     {recap.taxes_detail.map(taxe => (
                       <p key={taxe.idtaxe} className="flex justify-between">
                         <span>{taxe.denomination} ({taxe.taux}%)</span>
-                        <span>+ ${taxe.montant}</span>
+                        {/* ✅ CORRECTION: On fait de même pour chaque taxe */}
+                        <span>+ ${Number(taxe.montant).toFixed(2)}</span>
                       </p>
                     ))}
                   </div>
                 )}
                 <p className="flex justify-between font-semibold border-t dark:border-slate-600 pt-2 mt-2">
                     <span>Coût total estimé</span> 
-                    <span>${recap.montantTTC}</span>
+                    {/* ✅ CORRECTION: Et pour le montant total TTC */}
+                    <span>${Number(recap.montantTTC).toFixed(2)}</span>
                 </p>
             </div>
             <div className="divider my-4 dark:bg-slate-700"></div>
             <div className="flex justify-between items-center font-bold text-lg text-slate-900 dark:text-white">
-                <span>Dépôt à payer aujourd'hui</span> 
-                <span>50$</span>
+                <span>Montant à payer aujourd'hui</span> 
+                {/* ✅ CORRECTION: Et enfin ici, pour le montant final */}
+                <span>$50</span>
             </div>
         </div>
 
         {/* Colonne du paiement Stripe */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4 text-slate-800 dark:text-white">Paiement sécurisé du dépôt</h2>
+          <h2 className="text-xl font-semibold mb-4 text-slate-800 dark:text-white">Paiement sécurisé</h2>
           <Elements options={stripeOptions} stripe={stripePromise}>
-            <CheckoutForm />
+            <CheckoutForm reservationDetails={reservationDetailsForCheckout} onBeforeRedirect={handleCheckout} />
           </Elements>
         </div>
       </div>

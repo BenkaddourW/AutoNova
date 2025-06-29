@@ -35,11 +35,12 @@ const HeroSearchForm = () => {
       toast.dismiss(loadingToast);
       
       const availableVehicles = response.vehicles || [];
+      const totalVehicles = response.total || 0;
 
-      if (availableVehicles.length === 0) {
+      if (totalVehicles === 0) {
         toast("Désolé, aucun véhicule n'est disponible pour ces critères.", { duration: 4000 });
       } else {
-        toast.success(`${availableVehicles.length} véhicule(s) trouvé(s) !`);
+        toast.success(`${totalVehicles} véhicule(s) trouvé(s) !`);
         // On passe les critères de recherche à la page suivante
         navigate('/vehicules', { 
             state: { 

@@ -29,19 +29,48 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3000';
  * @query {string} categorie - Filtre par catégorie
  * @query {string} statut - Filtre par statut
  * @query {string} succursaleId - Filtre par succursale
- * @query {number} limit - Nombre de résultats par page
- * @query {number} offset - Décalage pour la pagination
+ * @query {number} limit - Nombre de résultats par page (déprécié, utiliser pageSize)
+ * @query {number} offset - Décalage pour la pagination (déprécié, utiliser page)
+ * @query {number} page - Numéro de page (commence à 1)
+ * @query {number} pageSize - Nombre de résultats par page
  * @returns {Object} { total, vehicules }
  */
 exports.getVehicules = asyncHandler(async (req, res) => {
-    const { search, marque, categorie, statut, succursaleId, limit = 10, offset = 0 } = req.query;
+    const { search, marque, categorie, statut, succursaleId, limit, offset, page, pageSize = 10 } = req.query;
+    
+    // Calcul de la pagination
+    let finalLimit = pageSize;
+    let finalOffset = 0;
+    
+    if (page && pageSize) {
+        // Nouvelle pagination avec page/pageSize
+        finalLimit = Number(pageSize);
+        finalOffset = (Number(page) - 1) * Number(pageSize);
+    } else if (limit && offset) {
+        // Ancienne pagination avec limit/offset (rétrocompatibilité)
+        finalLimit = Number(limit);
+        finalOffset = Number(offset);
+    } else if (limit) {
+        // Fallback avec seulement limit
+        finalLimit = Number(limit);
+    }
+    
     let where = {};
     if (search) { where[Op.or] = [ { immatriculation: { [Op.iLike]: `%${search}%` } }, { marque: { [Op.iLike]: `%${search}%` } }, { modele: { [Op.iLike]: `%${search}%` } } ]; }
     if (marque && marque !== 'any') where.marque = { [Op.iLike]: `%${marque}%` };
     if (categorie) where.categorie = { [Op.iLike]: `%${categorie}%` };
     if (statut) where.statut = statut;
     if (succursaleId && succursaleId !== 'any') { where.succursaleidsuccursale = succursaleId; }
-    const { count, rows } = await Vehicule.findAndCountAll({ where, limit: Number(limit), offset: Number(offset), order: [['idvehicule', 'ASC']], include: [{ model: VehiculeImage, as: 'VehiculeImages', required: false }], distinct: true });
+    
+    const { count, rows } = await Vehicule.findAndCountAll({ 
+        where, 
+        limit: finalLimit, 
+        offset: finalOffset, 
+        order: [['idvehicule', 'ASC']], 
+        include: [{ model: VehiculeImage, as: 'VehiculeImages', required: false }], 
+        distinct: true 
+    });
+    
     res.json({ total: count, vehicules: rows });
 });
 

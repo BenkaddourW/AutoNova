@@ -11,6 +11,7 @@ import StatCard from '../components/StatCard';
 import VehiculeFilters from '../components/VehiculeFilters';
 import PieChart from '../components/PieChart';
 import BarChart from '../components/BarChart';
+import Pagination from '../components/Pagination';
 
 // --- Hooks ---
 import { useDebounce } from '../hooks/useDebounce';
@@ -31,7 +32,11 @@ const VehiculesPage = () => {
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const exportCSV = useCSVExport('export_vehicules.csv');
 
-  // --- LOGIQUE DE FETCH (inchangée) ---
+  // --- ÉTATS DE PAGINATION ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10); // Taille de page fixe
+
+  // --- LOGIQUE DE FETCH (MODIFIÉE POUR LA PAGINATION) ---
   const loadPageData = useCallback(async () => {
     try {
       setLoading(true);
@@ -39,6 +44,10 @@ const VehiculesPage = () => {
       if (debouncedFilters.search) params.append('search', debouncedFilters.search); 
       if (debouncedFilters.statut) params.append('statut', debouncedFilters.statut);
       if (debouncedFilters.categorie) params.append('categorie', debouncedFilters.categorie);
+      
+      // Ajout des paramètres de pagination
+      params.append('page', currentPage.toString());
+      params.append('pageSize', pageSize.toString());
       
       const [statsData, vehiculesResponse, optionsData, marqueData] = await Promise.all([
         vehiculeService.getVehiculeGeneralStats(),
@@ -60,7 +69,7 @@ const VehiculesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedFilters]);
+  }, [debouncedFilters, currentPage, pageSize]);
 
   useEffect(() => {
     loadPageData();
@@ -119,12 +128,20 @@ const VehiculesPage = () => {
     setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
   };
   
+  // --- HANDLER DE PAGINATION ---
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  // --- HANDLER DE FILTRES (MODIFIÉ POUR RÉINITIALISER LA PAGE) ---
   const handleFilterChange = (key, value) => {
     if (key === 'clear') {
       setFilters({ search: '', statut: '', categorie: '' });
     } else {
       setFilters(prev => ({ ...prev, [key]: value }));
     }
+    // Réinitialiser à la première page lors du changement de filtre
+    setCurrentPage(1);
   };
 
   const handleExport = () => {
@@ -214,11 +231,20 @@ const VehiculesPage = () => {
         {loading ? (
           <div className="text-center py-8">Chargement de la liste...</div>
         ) : (
-          <VehiculesTable
-            vehicules={vehicules}
-            onEdit={handleOpenEditModal}
-           
-          />
+          <>
+            <VehiculesTable
+              vehicules={vehicules}
+              onEdit={handleOpenEditModal}
+              currentPage={currentPage}
+              pageSize={pageSize}
+            />
+            <Pagination
+              page={currentPage}
+              total={totalVehicules}
+              pageSize={pageSize}
+              onChange={handlePageChange}
+            />
+          </>
         )}
       </div>
 

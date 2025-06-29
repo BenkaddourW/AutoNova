@@ -165,7 +165,7 @@ const ReservationSidebar = ({ vehicle, succursales = [], initialDates }) => {
             ) : (
               <button
                 className="btn btn-outline w-full"
-                onClick={() => navigate('/vehicules')}
+                onClick={() => navigate('/')}
               >
                 Faire une recherche
               </button>

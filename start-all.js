@@ -25,6 +25,7 @@ const services = [
     { name: 'api-gateway', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'api-gateway') },
     { name: 'auth-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'auth-service') },
     { name: 'client-frontend', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'client-frontend') },
+    { name: 'admin-frontend', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'admin-frontend') },
     { name: 'client-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'client-service') },
     { name: 'dashboard-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'dashboard-service') },
     { name: 'inspectionvehicule-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'inspectionvehicule-service') },
@@ -33,6 +34,8 @@ const services = [
     { name: 'taxe-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'taxe-service') },
     { name: 'utilisateur-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'utilisateur-service') },
     { name: 'vehicule-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'vehicule-service') },
+    { name: 'paiement-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'paiement-service') },
+    { name: 'contrat-service', cmd: cmd, args: ['start'], cwd: path.join(__dirname, 'contrat-service') },
     // Ajoutez ici d'autres services si nécessaire
 ];
 

@@ -38,12 +38,7 @@ const Navbar = () => {
             </span>
           </NavLink>
 
-          {/* MENU NAVIGATION – Desktop */}
-          <div className="hidden md:flex items-center space-x-6">
-            <NavLink to="/vehicules" className={navLinkClasses}>Nos Véhicules</NavLink>
-            <NavLink to="/a-propos" className={navLinkClasses}>À Propos</NavLink>
-            <NavLink to="/contact" className={navLinkClasses}>Contact</NavLink>
-          </div>
+
 
           {/* UTILISATEUR & SWITCH THEME – Desktop */}
           <div className="hidden md:flex items-center space-x-4">

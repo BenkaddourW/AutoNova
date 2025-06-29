@@ -87,10 +87,10 @@ module.exports = (sequelize, DataTypes) => {
 );
 
   // Hook pour générer automatiquement le numéro de réservation
-  Reservation.beforeCreate(async (reservation, options) => {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    reservation.numeroreservation = `RES${Date.now()}${random}`;
-  });
+  // Reservation.beforeCreate(async (reservation, options) => {
+  //   const random = Math.floor(1000 + Math.random() * 9000);
+  //   reservation.numeroreservation = `RES${Date.now()}${random}`;
+  // });
 
     
 
