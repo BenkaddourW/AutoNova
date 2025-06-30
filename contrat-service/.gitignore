@@ -1,8 +1,6 @@
 # Node modules
 node_modules/
 
-# Environment variables
-v
 
 # Logs
 npm-debug.log*

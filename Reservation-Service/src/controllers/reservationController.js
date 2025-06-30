@@ -665,3 +665,108 @@ exports.getMyReservationById = asyncHandler(async (req, res) => {
     res.status(502).json({ message: "Un service de données (véhicule ou succursale) est indisponible." });
   }
 });
+
+
+
+      
+// =================================================================
+// DEBUT DES FONCTIONS AJOUTÉES PAR LE COLLEGUE
+// =================================================================
+
+/**
+ * [ADMIN/EMPLOYE] Récupère une réservation avec tous ses détails agrégés.
+ * Fait des appels à d'autres microservices pour enrichir les données.
+ * @route GET /:id/full-details
+ */
+exports.getReservationFullDetails = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  // On récupère le token d'autorisation pour le transmettre aux autres services
+  const authHeader = req.headers["authorization"]; 
+  const options = { headers: { Authorization: authHeader } };
+
+  try {
+    // 1. Récupérer la réservation de base
+    const reservation = await Reservation.findByPk(id, { raw: true });
+    if (!reservation) {
+      return res.status(404).json({ message: "Réservation non trouvée" });
+    }
+
+    // 2. Préparer tous les appels aux autres services en parallèle
+    const clientPromise = axios.get(`${GATEWAY_URL}/clients/${reservation.idclient}`, options);
+    const vehiculePromise = axios.get(`${GATEWAY_URL}/vehicules/${reservation.idvehicule}`);
+    const succLivPromise = axios.get(`${GATEWAY_URL}/succursales/${reservation.idsuccursalelivraison}`);
+    const succRetPromise = axios.get(`${GATEWAY_URL}/succursales/${reservation.idsuccursaleretour}`);
+    
+    // On exécute tous les appels en même temps pour gagner en performance
+    const [
+      clientResponse,
+      vehiculeResponse,
+      succLivResponse,
+      succRetResponse
+    ] = await Promise.all([clientPromise, vehiculePromise, succLivPromise, succRetPromise]);
+    
+    // 3. Assembler la réponse finale
+    res.json({
+      ...reservation,
+      Client: clientResponse.data,
+      Vehicule: vehiculeResponse.data,
+      SuccursaleLivraison: succLivResponse.data,
+      SuccursaleRetour: succRetResponse.data
+      // NOTE : Les inspections et taxes sont gérées séparément dans la version du collègue,
+      // mais cette base est solide et fonctionnelle.
+    });
+
+  } catch (error) {
+    console.error("Erreur d'agrégation dans getReservationFullDetails:", error.message);
+    // Si une erreur vient d'un autre service, elle sera capturée ici
+    if (error.response) {
+       console.error('Erreur du service distant:', error.response.status, error.response.data);
+       return res.status(error.response.status).json({
+          message: `Erreur lors de la récupération des détails depuis un service distant.`,
+          serviceError: error.response.data
+       });
+    }
+    res.status(500).json({
+      message: "Erreur lors de l'agrégation des données de la réservation.",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * [ADMIN/EMPLOYÉ] Met à jour uniquement le statut d'une réservation existante.
+ * @route PATCH /:id/statut
+ * @param {number} id - Identifiant de la réservation à mettre à jour (dans l'URL)
+ * @body {string} statut - Nouveau statut à appliquer à la réservation
+ * @returns {Object} Réservation mise à jour
+ *
+ * Cette méthode permet de modifier exclusivement le champ "statut" d'une réservation,
+ * sans affecter les autres propriétés. Elle effectue une validation basique sur la présence
+ * du champ "statut" dans la requête, puis applique la modification si la réservation existe.
+ */
+exports.majStatutReservation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { statut } = req.body;
+
+  // Vérification de la présence du champ "statut" dans la requête
+  if (!statut) {
+    res.status(400);
+    throw new Error("Le champ 'statut' est requis.");
+  }
+
+  // Recherche de la réservation par son identifiant
+  const reservation = await Reservation.findByPk(id);
+  if (!reservation) {
+    res.status(404);
+    throw new Error("Réservation non trouvée.");
+  }
+
+  // Mise à jour du statut uniquement, puis sauvegarde en base
+  reservation.statut = statut;
+  await reservation.save();
+
+  res.json(reservation);
+});
+
+// =================================================================
+

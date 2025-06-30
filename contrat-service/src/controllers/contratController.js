@@ -1,33 +1,54 @@
 const { Contrat, Inspection } = require("../models");
 
+const axios = require("axios");
+
 /**
- * Crée un contrat et, si fourni, une inspection associée.
- * Le body doit contenir les champs du contrat et un objet "inspection" optionnel.
+ * Crée un contrat à partir d'une réservation et enregistre les taxes associées.
+ * Le body doit contenir l'objet réservation (avec Taxes).
  */
 exports.creerContrat = async (req, res) => {
-  const { inspection, ...contratData } = req.body;
   try {
-    // Création du contrat
-    const contrat = await Contrat.create(contratData);
+    const reservation = req.body;
 
-    // Création de l'inspection si les données sont fournies
-    let inspectionCree = null;
-    if (inspection) {
-      inspectionCree = await Inspection.create({
-        ...inspection,
-        idcontrat: contrat.idcontrat,
-      });
+    const contratData = {
+      date: Date.now(),
+      montant: reservation.montanttotal,
+      montantttc: reservation.montantttc,
+      statut: "brouillon",
+      idreservation: reservation.idreservation,
+      dateretourprevue: reservation.dateretour,
+      dateretour: null,
+      montantpenalite: 0,
+      taxes: reservation.taxes,
+      montantremboursement: 0,
+    };
+
+    // Création du contrat
+    const contratCree = await Contrat.create(contratData);
+
+    // Préparation des taxes à enregistrer
+    const taxesContrat = (reservation.Taxes || []).map((taxe) => ({
+      idcontrat: contratCree.idcontrat,
+      idtaxe: taxe.idtaxe,
+      taux: taxe.taux,
+      denomination: taxe.denomination,
+      montant: null, // à calculer si besoin
+    }));
+
+    // Appel au service taxe pour enregistrer les taxes associées au contrat
+    if (taxesContrat.length > 0) {
+      await axios.post(
+        "http://localhost:3009/taxes/taxes-contrat", // URL du service taxe
+        taxesContrat
+      );
     }
 
     res.status(201).json({
-      contrat,
-      inspection: inspectionCree,
+      message: "Contrat créé avec taxes associées",
+      contrat: contratCree,
     });
-  } catch (error) {
-    console.error(
-      "Erreur lors de la création du contrat et de l'inspection :",
-      error
-    );
+  } catch (err) {
+    console.error("Erreur lors de la création du contrat :", err);
     res.status(500).json({ message: "Erreur lors de la création du contrat" });
   }
 };
@@ -113,10 +134,131 @@ exports.listerContratsClient = async (req, res) => {
 
     res.json(contrats);
   } catch (error) {
+    res.status(500).json({
+      message: "Erreur lors de la récupération des contrats du client",
+    });
+  }
+};
+
+/**
+ * Récupère un contrat par son ID.
+ * Autorisé aux employés et admins.
+ * Retourne le contrat avec ses inspections associées et ses taxes.
+ */
+exports.getContratById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // 1. Récupère le contrat et ses inspections
+    const contrat = await Contrat.findByPk(id, {
+      include: [
+        {
+          model: Inspection,
+          as: "inspections",
+        },
+      ],
+    });
+    if (!contrat) {
+      return res.status(404).json({ message: "Contrat non trouvé" });
+    }
+
+    // 2. Récupère les taxes via le service taxe
+    let taxes = [];
+    try {
+      const taxeResponse = await axios.get(
+        `http://localhost:3000/taxes/by-contrat/${id}`
+      );
+      taxes = taxeResponse.data;
+    } catch (taxeErr) {
+      console.error(
+        "Erreur lors de la récupération des taxes du contrat :",
+        taxeErr.message
+      );
+    }
+
+    // 3. Récupère la réservation (et donc le véhicule et le client) via le service réservation
+    let reservation = null;
+    try {
+      const reservationResponse = await axios.get(
+        `http://localhost:3000/reservations/${contrat.idreservation}/full-details`,
+        {
+          headers: {
+            Authorization: req.headers.authorization,
+          },
+        }
+      );
+      reservation = reservationResponse.data;
+    } catch (resErr) {
+      console.error(
+        "Erreur lors de la récupération de la réservation :",
+        resErr.message
+      );
+    }
+
+    // 4. Retourne tout dans la réponse
+    const contratWithDetails = {
+      ...contrat.toJSON(),
+      taxes,
+      reservation,
+    };
+
+    res.json(contratWithDetails);
+  } catch (error) {
     res
       .status(500)
-      .json({
-        message: "Erreur lors de la récupération des contrats du client",
-      });
+      .json({ message: "Erreur lors de la récupération du contrat" });
+  }
+};
+
+/**
+ * Cree une inspection pour un contrat.
+ * Autorisé aux employés et admins.
+ * Le body doit contenir les détails de l'inspection.
+ */
+
+exports.creerInspection = async (req, res) => {
+  try {
+    const {
+      dateinspection,
+      kilometrage,
+      niveaucarburant,
+      proprete,
+      note,
+      typeinspection,
+      idvehicule,
+      idcontrat,
+    } = req.body;
+
+    // Vérification des champs obligatoires
+    if (
+      !dateinspection ||
+      typeof kilometrage !== "number" ||
+      !niveaucarburant ||
+      typeof proprete !== "boolean" ||
+      !typeinspection ||
+      !idvehicule ||
+      !idcontrat
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Champs obligatoires manquants ou invalides" });
+    }
+
+    const inspection = await Inspection.create({
+      dateinspection,
+      kilometrage,
+      niveaucarburant,
+      proprete,
+      note,
+      typeinspection,
+      idvehicule,
+      idcontrat,
+    });
+
+    res.status(201).json(inspection);
+  } catch (error) {
+    console.error("Erreur lors de la création de l'inspection :", error);
+    res
+      .status(500)
+      .json({ message: "Erreur lors de la création de l'inspection" });
   }
 };

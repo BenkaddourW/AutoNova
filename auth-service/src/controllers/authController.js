@@ -11,6 +11,7 @@ const {
 } = require("../utils/jwtUtils");
 const TokenSession = require("../models/token_session");
 const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize"); 
 
 // Inscription de base
 exports.register = async (req, res) => {
@@ -135,7 +136,6 @@ exports.completeProfile = async (req, res) => {
   }
 };
 
-// Connexion utilisateur
 exports.login = async (req, res) => {
   try {
     const { email, motdepasse } = req.body;
@@ -148,7 +148,10 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Identifiants invalides." });
     }
 
-    const passwordMatch = await bcrypt.compare(motdepasse, utilisateur.motdepasse);
+    const passwordMatch = await bcrypt.compare(
+      motdepasse,
+      utilisateur.motdepasse
+    );
     if (!passwordMatch) {
       return res.status(401).json({ message: "Identifiants invalides." });
     }
@@ -156,7 +159,6 @@ exports.login = async (req, res) => {
     const utilisateurRole = await UtilisateurRole.findOne({
       where: { idutilisateur: utilisateur.idutilisateur },
     });
-
     let role = null;
     if (utilisateurRole) {
       const roleObj = await Role.findOne({
@@ -165,14 +167,28 @@ exports.login = async (req, res) => {
       role = roleObj ? roleObj.role : null;
     }
 
+    // --- DEBUT DE L'AMÉLIORATION ---
+    // Récupérer l'id de la succursale si l'utilisateur est un employé
+    let idsuccursale = null;
+    if (role === "employe") {
+      const employe = await Employe.findOne({
+        where: { idutilisateur: utilisateur.idutilisateur },
+      });
+      if (employe) {
+        idsuccursale = employe.idsuccursale;
+      }
+    }
+    // --- FIN DE L'AMÉLIORATION ---
+
     const payload = {
       idutilisateur: utilisateur.idutilisateur,
       email: utilisateur.email,
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: role,
+      idsuccursale: idsuccursale, // Contient l'ID de la succursale ou null
     };
-
+    
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
@@ -193,6 +209,7 @@ exports.login = async (req, res) => {
   }
 };
 
+
 // Rafraîchir le token
 exports.refreshToken = async (req, res) => {
   try {
@@ -204,25 +221,37 @@ exports.refreshToken = async (req, res) => {
     const session = await TokenSession.findOne({
       where: { token: refreshToken, type: "refresh" },
     });
-
     if (!session) {
-      return res.status(401).json({ message: "Refresh token invalide." });
+      return res.status(401).json({ message: "Refresh token invalide ou révoqué." });
     }
 
     let payload;
     try {
-      payload = verifyToken(refreshToken);
+      // On utilise votre utilitaire pour vérifier le token
+      payload = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
     } catch (err) {
       return res.status(401).json({ message: "Refresh token expiré ou invalide." });
     }
 
-    const newAccessToken = generateAccessToken(payload);
+    // On recrée un payload propre pour le nouveau access token
+    // C'est ici la légère différence : on ne prend que les infos essentielles
+    const newAccessTokenPayload = {
+      idutilisateur: payload.idutilisateur,
+      email: payload.email,
+      nom: payload.nom,
+      prenom: payload.prenom,
+      role: payload.role,
+      idsuccursale: payload.idsuccursale, // Important de le garder pour la cohérence
+    };
+
+    const newAccessToken = generateAccessToken(newAccessTokenPayload);
 
     res.json({ accessToken: newAccessToken });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
 };
+
 
 // Déconnexion
 exports.logout = async (req, res) => {
@@ -312,5 +341,108 @@ exports.updateUtilisateur = async (req, res) => {
       message: "Erreur lors de la mise à jour de l'utilisateur.",
       error: err.message,
     });
+  }
+};
+
+
+/**
+ * [ADMIN] Crée un nouvel utilisateur (employé ou admin)
+ * @route POST /admin/create-user
+ */
+exports.createUserByAdmin = async (req, res) => {
+  try {
+    const {
+      email, motdepasse, nom, prenom, role,
+      adresse1, adresse2, ville, codepostal, province, pays,
+      numerotelephone, numeromobile, idsuccursale, dateembauche,
+    } = req.body;
+
+    if (!email || !motdepasse || !nom || !prenom || !role) {
+      return res.status(400).json({ message: "Les champs email, motdepasse, nom, prenom et role sont requis." });
+    }
+
+    const utilisateurExiste = await Utilisateur.findOne({ where: { email } });
+    if (utilisateurExiste) {
+      return res.status(409).json({ message: "Cet email est déjà utilisé." });
+    }
+
+    const hash = await bcrypt.hash(motdepasse, 10);
+    const nouvelUtilisateur = await Utilisateur.create({
+      email, motdepasse: hash, nom, prenom, adresse1, adresse2, ville,
+      codepostal, province, pays, numerotelephone, numeromobile,
+    });
+
+    const roleObj = await Role.findOne({ where: { role } });
+    if (!roleObj) {
+      return res.status(400).json({ message: "Rôle invalide." });
+    }
+    await UtilisateurRole.create({
+      idutilisateur: nouvelUtilisateur.idutilisateur,
+      idrole: roleObj.idrole,
+    });
+
+    if (role === "employe" || role === "admin") {
+      await Employe.create({
+        idutilisateur: nouvelUtilisateur.idutilisateur,
+        dateembauche,
+        idsuccursale: role === "employe" ? idsuccursale : null,
+      });
+    }
+
+    res.status(201).json({
+      message: "Utilisateur créé avec succès.",
+      utilisateur: {
+        idutilisateur: nouvelUtilisateur.idutilisateur,
+        email: nouvelUtilisateur.email,
+        role: roleObj.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur lors de la création de l'utilisateur.", error: error.message });
+  }
+};
+
+/**
+ * [ADMIN] Récupère la liste de tous les utilisateurs avec filtres
+ * @route GET /utilisateurs
+ */
+exports.getUtilisateurs = async (req, res) => {
+  try {
+    const { nom, prenom, role, idsuccursale } = req.query;
+    const where = {};
+
+    if (nom) where.nom = { [Op.iLike]: `%${nom}%` };
+    if (prenom) where.prenom = { [Op.iLike]: `%${prenom}%` };
+    
+    const include = [
+      {
+        model: Role,
+        as: "Roles", // Cet alias doit correspondre à celui défini dans vos modèles
+        through: { attributes: [] },
+      },
+      {
+        model: Employe,
+        as: "Employes", // Cet alias doit correspondre à celui défini dans vos modèles
+        required: false,
+      },
+    ];
+
+    if (role) {
+      include[0].where = { role: role };
+    }
+    if (idsuccursale) {
+      include[1].where = { idsuccursale: idsuccursale };
+      include[1].required = true;
+    }
+
+    const utilisateurs = await Utilisateur.findAll({
+      where,
+      include,
+      order: [["nom", "ASC"], ["prenom", "ASC"]],
+    });
+
+    res.json(utilisateurs);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur lors de la récupération des utilisateurs.", error: error.message });
   }
 };

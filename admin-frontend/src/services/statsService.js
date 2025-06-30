@@ -72,6 +72,10 @@ export const getRecentReservations = async () => {
   }
 };
 
+//Recupere les reservations du jour
+
+
+
 /**
  * Récupère les données d'évolution mensuelle pour le graphique du dashboard.
  */

@@ -3,49 +3,43 @@
 const axios = require('axios');
 const { getServiceUrl } = require('../lib/consul-client');
 
-// --- FONCTIONS EXISTANTES (INCHANGÉES) ---
+// ===============================
+// FONCTIONS DE RÉCUPÉRATION DE STATISTIQUES RÉSERVATION
+// ===============================
 
+/**
+ * Récupère le nombre de réservations par succursale via le reservation-service.
+ * @returns {Array} Liste des succursales avec leur nombre de réservations.
+ */
 async function getReservationCountBySuccursale() {
   try {
     const baseUrl = await getServiceUrl('reservation-service');
     const { data } = await axios.get(`${baseUrl}/reservations/stats/by-succursale`);
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (by-succursale):', error.message);
+    console.error('Erreur de communication avec reservation-service (by-succursale) :', error.message);
     throw error; // Propage l'erreur pour que Promise.all échoue
   }
 }
 
+/**
+ * Récupère le nombre de réservations actives via le reservation-service.
+ * @returns {Object} Objet contenant le nombre de réservations actives.
+ */
 async function getActiveReservationCount() {
   try {
     const baseUrl = await getServiceUrl('reservation-service');
     const { data } = await axios.get(`${baseUrl}/reservations/stats/active-count`);
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (active-count):', error.message);
+    console.error('Erreur de communication avec reservation-service (active-count) :', error.message);
     throw error;
   }
 }
 
-// --- FONCTIONS MANQUANTES À AJOUTER ---
-
 /**
- * Appelle le reservation-service pour obtenir les 5 réservations les plus récentes.
- */
-// async function getRecentReservations() {
-//   try {
-//     const baseUrl = await getServiceUrl('reservation-service');
-//     // La route doit correspondre à celle définie dans reservationRoutes.js
-//     const { data } = await axios.get(`${baseUrl}/reservations/stats/recent`);
-//     return data;
-//   } catch (error) {
-//     console.error('Erreur de com. avec reservation-service (recent):', error.message);
-//     throw error;
-//   }
-// }
-
-/**
- * Appelle le reservation-service pour obtenir l'évolution mensuelle.
+ * Récupère l'évolution mensuelle des réservations via le reservation-service.
+ * @returns {Array} Données d'évolution mensuelle des réservations.
  */
 async function getMonthlyEvolution() {
   try {
@@ -53,12 +47,15 @@ async function getMonthlyEvolution() {
     const { data } = await axios.get(`${baseUrl}/reservations/stats/monthly-evolution`);
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (monthly-evolution):', error.message);
+    console.error('Erreur de communication avec reservation-service (monthly-evolution) :', error.message);
     throw error;
   }
 }
 
-// --- ✅ NOUVEAU : Appel pour top succursales par réservation ---
+/**
+ * Récupère les 3 succursales ayant le plus grand nombre de réservations, puis enrichit avec leur nom.
+ * @returns {Array} Liste des succursales les plus performantes avec leur nom et nombre de réservations.
+ */
 async function getTopSuccursalesByReservation() {
   try {
     const reservationUrl = await getServiceUrl('reservation-service');
@@ -67,7 +64,7 @@ async function getTopSuccursalesByReservation() {
     // 1. Récupère les 3 meilleures succursales selon le nombre de réservations
     const { data: topRaw } = await axios.get(`${reservationUrl}/reservations/stats/top-succursales`);
 
-    // 2. Récupère la liste complète des succursales avec noms
+    // 2. Récupère la liste complète des succursales avec leurs noms
     const { data: succursales } = await axios.get(`${succursaleUrl}/succursales/all-list`);
 
     // 3. Fusionne pour obtenir le nom de chaque succursale dans le top
@@ -81,18 +78,26 @@ async function getTopSuccursalesByReservation() {
 
     return topFinal;
   } catch (error) {
-    console.error("Erreur top succursales:", error.message);
+    console.error("Erreur lors de la récupération des top succursales :", error.message);
     return [];
   }
 }
 
-
-// --- MISE À JOUR DE L'EXPORT ---
-// Assurez-vous d'exporter TOUTES les fonctions que vous utilisez.
+// ===============================
+// EXPORT DES FONCTIONS UTILISÉES PAR LE ROUTEUR DASHBOARD
+// ===============================
 module.exports = { 
   getReservationCountBySuccursale,
   getActiveReservationCount,
-  // getRecentReservations,      // <--- AJOUTÉ
+  // getRecentReservations, // À décommenter si la fonction est implémentée
   getMonthlyEvolution,
-  getTopSuccursalesByReservation,        // <--- AJOUTÉ
+  getTopSuccursalesByReservation,
 };
+
+/*
+Suggestions d'amélioration :
+- Implémentez et exportez la fonction getRecentReservations si elle est utilisée côté dashboard.
+- Centralisez les messages d'erreur pour faciliter la maintenance et la traduction.
+- Ajoutez une gestion de cache si les statistiques sont coûteuses à récupérer et peu volatiles.
+- Documentez chaque fonction dans une spécification OpenAPI/Swagger si ces statistiques sont utilisées dans une API.
+*/
