@@ -82,7 +82,12 @@ const BookingDetailPage = () => {
                 <DetailItem label="Taxes">{Number(booking.taxes).toFixed(2)} $</DetailItem>
                 <DetailItem label="Montant a payé">{Number(booking.montantttc).toFixed(2)} $</DetailItem>
                 <DetailItem label="Montant du dépôt payé">50 $</DetailItem>
-                <DetailItem label="Montant restant à payer">{(Number(booking.montantttc) - Number(50)).toFixed(2)} $</DetailItem>
+                <DetailItem label="Montant restant à payer">
+                  {booking.statut === 'Active' 
+                    ? '0.00 $' 
+                    : `${(Number(booking.montantttc) - Number(50)).toFixed(2)} $`
+                  }
+                </DetailItem>
              </dl>
         </div>
 
