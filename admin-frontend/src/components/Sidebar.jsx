@@ -18,6 +18,7 @@ const Sidebar = () => {
     { to: '/succursales', text: 'Succursales', icon: Building, role: ['admin', 'employe'] },
     { to: '/taxes', text: 'Taxes', icon: Banknote, role: ['admin'] },
     { to: '/utilisateurs', text: 'Utilisateurs', icon: Users, role: ['admin'] },
+
   ];
 
   const activeLinkClass = "bg-sky-500 text-white";
