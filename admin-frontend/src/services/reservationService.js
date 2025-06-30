@@ -79,3 +79,25 @@ export async function getReservationFullDetails(id, token) {
   console.log("Response:", response);
   return await response.json();
 }
+
+// Mettre à jour uniquement le statut d'une réservation
+export const updateReservationStatut = async (id, statut, token) => {
+  try {
+    const response = await fetch(`${RESERVATIONS_API_URL}/${id}/statut`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ statut }),
+    });
+    if (!response.ok)
+      throw new Error(
+        "Erreur lors de la mise à jour du statut de la réservation."
+      );
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur dans updateReservationStatut:", error);
+    throw error;
+  }
+};

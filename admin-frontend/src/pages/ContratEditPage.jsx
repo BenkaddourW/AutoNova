@@ -6,6 +6,7 @@ import {
   createInspection,
 } from "../services/contratService";
 import { payerContrat } from "../services/paiementService";
+import { updateReservationStatut } from "../services/reservationService";
 import { useAuth } from "../context/AuthContext";
 
 // Styles réutilisables
@@ -290,7 +291,7 @@ const InspectionForm = ({ contrat, onClose, onSaved }) => {
   );
 };
 
-// Formulaire Paiement avec thème sombre
+// Formulaire Paiement avec mise à jour du statut de réservation
 const PaiementForm = ({ contrat, onClose, onSaved }) => {
   const [form, setForm] = useState({
     montant: (
@@ -327,10 +328,17 @@ const PaiementForm = ({ contrat, onClose, onSaved }) => {
           note: form.note,
           idcontrat: contrat.idcontrat,
           typepaiement: "paiement",
-          statutPaiement: "succeeded", // Ajouté pour forcer succeeded
+          statutPaiement: "succeeded",
         },
         token
       );
+
+      // Mettre à jour le statut de la réservation à "Active"
+      const idReservation = contrat.reservation?.idreservation;
+      if (idReservation) {
+        await updateReservationStatut(idReservation, "Active", token);
+      }
+
       if (onSaved) onSaved("Paiement effectué !");
       onClose();
     } catch (e) {

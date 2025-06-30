@@ -833,3 +833,17 @@ exports.getReservationFullDetails = asyncHandler(async (req, res) => {
     });
   }
 });
+
+//Mise a jour statut d'une reservation
+exports.majStatutReservation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { statut } = req.body;
+  const reservation = await Reservation.findByPk(id);
+  if (!reservation) {
+    res.status(404);
+    throw new Error("Réservation non trouvée");
+  }
+  reservation.statut = statut;
+  await reservation.save();
+  res.json(reservation);
+});

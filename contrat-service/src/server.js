@@ -6,7 +6,7 @@ const morgan = require("morgan");
 const Consul = require("consul");
 
 const app = express();
-const PORT = process.env.PORT || 3010;
+const PORT = process.env.PORT || 3015;
 
 // Middlewares
 app.use(express.json());

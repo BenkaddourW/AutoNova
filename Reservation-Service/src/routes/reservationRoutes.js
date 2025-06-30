@@ -54,4 +54,12 @@ router.get(
 // Vérifier la disponibilité d'une liste de véhicules
 router.post("/disponibilites", reservationController.getDisponibilites);
 
+//Route pour mettre à jour uniquement le statut d'une réservation
+router.patch(
+  "/:id/statut",
+  authenticateToken, // Authentification JWT
+  authorizeRole("admin", "employe"), // Autorisation par rôle
+  reservationController.majStatutReservation
+);
+
 module.exports = router;
