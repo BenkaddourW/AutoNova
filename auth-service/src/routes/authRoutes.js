@@ -21,6 +21,16 @@ router.get("/utilisateurs/:idutilisateur", authController.getUtilisateurById);
 // Récupérer un utilisateur par id
 router.get("/utilisateurs/:idutilisateur", authController.getUtilisateurById);
 
+router.use(authenticate); 
+
+// Récupérer les informations de l'utilisateur connecté (PROTÉGÉE)
+router.post("/complete-profile", authController.completeProfile);
+
+
+// Récupérer un utilisateur par son id
+// Maintenant protégée par router.use(authenticate)
+router.get("/utilisateurs/:idutilisateur", authController.getUtilisateurById);
+
 // Mettre à jour son propre profil
 router.put(
   "/profile",

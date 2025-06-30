@@ -12,7 +12,7 @@ const DashboardPage = () => {
     totalSuccursales: 0, 
     totalUtilisateurs: 0 
   });
-  const [reservations, setReservations] = useState([]);
+  // const [reservations, setReservations] = useState([]);
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,9 +21,9 @@ const DashboardPage = () => {
       try {
         setLoading(true);
         
-        const [statsData, reservationsData, evolutionData] = await Promise.all([
+        const [statsData,  evolutionData] = await Promise.all([
           getDashboardStats(),
-          getRecentReservations(),
+          // getRecentReservations(),
           getMonthlyEvolution()
         ]);
 
@@ -34,7 +34,7 @@ const DashboardPage = () => {
           totalUtilisateurs: 0 // Gardé à 0 pour le moment
         });
 
-        setReservations(reservationsData);
+        // setReservations(reservationsData);
         setChartData(evolutionData);
 
       } catch (error) {
@@ -67,7 +67,7 @@ const DashboardPage = () => {
             {chartData && <MonthlyChart chartData={chartData} />}
         </div>
         <div className="lg:col-span-1">
-          <RecentReservations reservations={reservations} />
+          {/* <RecentReservations reservations={reservations} /> */}
         </div>
       </div>
     </div>

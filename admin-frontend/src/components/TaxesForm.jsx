@@ -1,16 +1,51 @@
+
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 
 const TaxesForm = ({ initialData, onSubmit, onCancel }) => {
+  // On pré-remplit le formulaire avec les données de la taxe et de sa première localité
+  const defaultFormValues = initialData 
+    ? { 
+        ...initialData, 
+        pays: initialData.localites?.[0]?.pays || '', 
+        province: initialData.localites?.[0]?.province || '' 
+      } 
+    : {};
+
   const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
-    defaultValues: initialData || {}
+    defaultValues: defaultFormValues
   });
+
+  // Met à jour le formulaire si on clique sur un autre bouton "modifier"
+  useEffect(() => {
+    reset(defaultFormValues);
+  }, [initialData, reset]);
 
   const isEditing = !!initialData;
 
-  const handleLocalSubmit = async (data) => {
-    const result = await onSubmit(data);
-    if (result?.errors) {
-      result.errors.forEach(err => setError(err.field, { type: 'server', message: err.message }));
+  // ✅ C'EST ICI LA CORRECTION PRINCIPALE
+  const handleLocalSubmit = async (formData) => {
+    // 1. On récupère les données "plates" du formulaire
+    const { pays, province, ...taxeData } = formData;
+
+    // 2. On construit l'objet final avec la structure attendue par le backend
+    const finalData = {
+      ...taxeData,
+      // On crée le tableau `localites` que le backend attend.
+      // Pour l'instant, on ne gère qu'une seule localité par taxe.
+      localites: [
+        { pays, province }
+      ]
+    };
+    
+    // 3. On appelle la fonction `onSubmit` (qui est `handleSubmit` dans la page parente)
+    // avec les données correctement formatées.
+    try {
+      await onSubmit(finalData);
+    } catch (err) {
+      if (err?.errors) {
+        err.errors.forEach(e => setError(e.field, { type: 'server', message: e.message }));
+      }
     }
   };
 
@@ -22,23 +57,36 @@ const TaxesForm = ({ initialData, onSubmit, onCancel }) => {
             {isEditing ? `Modifier la taxe #${initialData?.idtaxe}` : 'Ajouter une taxe'}
           </h2>
           <div>
-            <label className="block text-sm font-medium mb-1">Dénomination</label>
-            <input type="text" {...register('denomination', { required: 'Requis' })} className="w-full border px-3 py-2 rounded" />
-            {errors.denomination && <p className="text-red-500 text-sm">{errors.denomination.message}</p>}
+            <label className="label-style">Dénomination</label>
+            <input type="text" {...register('denomination', { required: 'Ce champ est requis' })} className="input-style w-full" />
+            {errors.denomination && <p className="error-style">{errors.denomination.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Abrégé</label>
-            <input type="text" {...register('abrege', { required: 'Requis' })} className="w-full border px-3 py-2 rounded" />
-            {errors.abrege && <p className="text-red-500 text-sm">{errors.abrege.message}</p>}
+            <label className="label-style">Abrégé</label>
+            <input type="text" {...register('abrege', { required: 'Ce champ est requis' })} className="input-style w-full" />
+            {errors.abrege && <p className="error-style">{errors.abrege.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Taux (%)</label>
-            <input type="number" step="0.01" {...register('taux', { required: 'Requis' })} className="w-full border px-3 py-2 rounded" />
-            {errors.taux && <p className="text-red-500 text-sm">{errors.taux.message}</p>}
+            <label className="label-style">Taux (%)</label>
+            <input type="number" step="0.001" {...register('taux', { required: 'Ce champ est requis', valueAsNumber: true })} className="input-style w-full" />
+            {errors.taux && <p className="error-style">{errors.taux.message}</p>}
           </div>
+          
+          {/* Les champs pour la localité restent les mêmes visuellement */}
+          <div>
+            <label className="label-style">Pays</label>
+            <input type="text" {...register('pays', { required: 'Ce champ est requis' })} className="input-style w-full" />
+            {errors.pays && <p className="error-style">{errors.pays.message}</p>}
+          </div>
+          <div>
+            <label className="label-style">Province</label>
+            <input type="text" {...register('province', { required: 'Ce champ est requis' })} className="input-style w-full" />
+            {errors.province && <p className="error-style">{errors.province.message}</p>}
+          </div>
+
           <div className="flex justify-end space-x-2 pt-4">
-            <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded">Annuler</button>
-            <button type="submit" className="px-4 py-2 bg-sky-600 text-white rounded">{isEditing ? 'Mettre à jour' : 'Créer'}</button>
+            <button type="button" onClick={onCancel} className="btn">Annuler</button>
+            <button type="submit" className="btn btn-primary">{isEditing ? 'Mettre à jour' : 'Créer'}</button>
           </div>
         </form>
       </div>

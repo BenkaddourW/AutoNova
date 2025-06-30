@@ -1,22 +1,36 @@
 const jwt = require("jsonwebtoken");
 
-// Récupère le secret depuis le .env
-const JWT_SECRET = process.env.JWT_SECRET;
-
-function authenticateToken(req, res, next) {
+/**
+ * Middleware d'authentification JWT
+ * ---------------------------------
+ * Vérifie la présence et la validité du token JWT dans l'en-tête Authorization.
+ * Si valide, ajoute le payload décodé à req.user.
+ */
+const protect = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format "Bearer TOKEN"
-  if (!token) {
-    return res.status(401).json({ message: 'Token manquant ou invalide' });
+  
+  // Vérifie si l'en-tête existe et s'il est au format "Bearer TOKEN"
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Non autorisé, format de token invalide.' });
   }
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token invalide ou expiré' });
-    }
-    req.user = user; // Ajoute les infos du user décodées dans la requête
+  
+  // Extrait le token
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    // Vérifie le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Attache le payload décodé à req.user
+    // Si votre token a été créé avec { id: ..., role: ... }, alors decoded sera cet objet.
+    req.user = decoded; 
+    
+    // Passe à la suite
     next();
-  });
-}
+  } catch (error) {
+    // Si jwt.verify échoue (token expiré, invalide, etc.)
+    return res.status(401).json({ message: 'Non autorisé, token invalide.' });
+  }
+};
 
-module.exports = authenticateToken;
-
+module.exports = { protect };

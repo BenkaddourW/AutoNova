@@ -1,70 +1,96 @@
 const express = require('express');
 const router = express.Router();
 
-const { getVehiculeStats, getVehiculeStatsBySuccursale } = require('../services/vehiculeService');
-const { getSuccursaleCount, getAllSuccursales } = require('../services/succursaleService');
-const { getReservationCountBySuccursale, getActiveReservationCount } = require('../services/reservationService');
+// --- ÉTAPE 1 : IMPORTER LES BONNES FONCTIONS ---
+
+// Pour les stats générales des véhicules (StatCard)
+const { getVehiculeStats } = require('../services/vehiculeService');
+
+// Pour le nombre total de succursales (StatCard)
+const { getSuccursaleCount } = require('../services/succursaleService');
+const {
+  getVehiculeStatsBySuccursaleWithNames
+} = require('../services/vehiculeService'); // <- ajoute ici
+
+
+
+// Pour les données de réservation (StatCard, Widget, Graphique)
+// On importe les fonctions dont le frontend a VRAIMENT besoin
+const { 
+  getActiveReservationCount,
+  getRecentReservations,
+  getMonthlyEvolution,
+   getTopSuccursalesByReservation,
+} = require('../services/reservationService');
+
+
+// --- ÉTAPE 2 : METTRE À JOUR LA ROUTE PRINCIPALE ---
 
 router.get('/dashboard-data', async (req, res) => {
   try {
-    // 1. Lancer tous les appels aux microservices en parallèle.
+    // On lance en parallèle UNIQUEMENT les appels nécessaires pour la page d'accueil
     const [
-      vehiculesStatsData,
-      succursaleCountData,
-      activeReservationsData,
-      vehiculesBySuccursaleData,
-      allSuccursalesData,
-      reservationCountBySuccData,
+      vehiculesStats,      // Pour la StatCard "Véhicules au total"
+      succursaleCount,     // Pour la StatCard "Succursales"
+      activeReservations,  // Pour la StatCard "Réservations Actives"
+      recentReservations,  // Pour le widget "Réservations Récentes"
+      monthlyEvolution,
+      topSuccursalesData,    // Pour le graphique "Évolution Mensuelle"
     ] = await Promise.all([
       getVehiculeStats(),
       getSuccursaleCount(),
-      getActiveReservationCount(), // Appel à la nouvelle fonction
-      getVehiculeStatsBySuccursale(),
-      getAllSuccursales(),
-      getReservationCountBySuccursale(),
+      getActiveReservationCount(),
+      // getRecentReservations(),
+      getMonthlyEvolution(),
+      getTopSuccursalesByReservation(),
     ]);
 
-    // 2. Préparer le mapping des noms de succursales.
-    const succursaleNameMap = allSuccursalesData.reduce((map, succursale) => {
-      map[succursale.idsuccursale] = succursale.nomsuccursale;
-      return map;
-    }, {});
-
-    // 3. Combiner les stats des véhicules avec les noms de succursales.
-    const combinedVehiculesBySuccursale = vehiculesBySuccursaleData.map(stat => ({
-      succursaleidsuccursale: stat.succursaleidsuccursale,
-      vehiculeCount: parseInt(stat.vehiculeCount, 10),
-      nomsuccursale: succursaleNameMap[stat.succursaleidsuccursale] || 'Succursale Inconnue'
-    }));
     
-    // 4. Préparer le top 3 des succursales par réservation.
-    const topSuccursalesByReservation = reservationCountBySuccData
-      .map(stat => ({
-        nomsuccursale: succursaleNameMap[stat.idsuccursalelivraison] || 'Inconnue',
-        count: parseInt(stat.reservationCount, 10),
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
 
-    // 5. Construire l'objet de réponse final qui sera envoyé au frontend.
+    // --- ÉTAPE 3 : CONSTRUIRE LA RÉPONSE FINALE ---
+    // La structure de cet objet doit correspondre exactement à ce que le frontend attend.
     const finalResponse = {
-      vehicules: vehiculesStatsData,
-      succursales: succursaleCountData,
-      // Ajout de la nouvelle statistique
-      reservationsActives: activeReservationsData.count || 0, 
-      vehiculesBySuccursale: combinedVehiculesBySuccursale,
-      topSuccursalesByReservation: topSuccursalesByReservation,
-      // la stat utilisateur sera ajoutée plus tard
+      // Pour les StatCards
+      vehicules: vehiculesStats,
+      succursales: succursaleCount,
+      reservationsActives: activeReservations.count || 0,
+      recentReservations: recentReservations,
+      monthlyEvolution: monthlyEvolution,
+      topSuccursalesByReservation: topSuccursalesData
     };
 
     res.json(finalResponse);
 
   } catch (error) {
-    console.error('Erreur lors de la construction des données du dashboard:', error.message);
+    // Cette erreur est attrapée si un des services n'est pas trouvable par Consul
+    console.error('Erreur critique lors de la construction des données du dashboard:', error.message);
     res.status(503).json({
       error: 'Un ou plusieurs services nécessaires pour le dashboard ne sont pas disponibles.' 
     });
   }
 });
+
+router.get('/vehicules-by-succursale', async (req, res) => {
+  try {
+    console.log("✅ Requête reçue sur /dashboards/vehicules-by-succursale");
+
+    const result = await getVehiculeStatsBySuccursaleWithNames();
+    res.json(result);
+  } catch (error) {
+    console.error("Erreur route /vehicules-by-succursale :", error.message);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+router.get('/top-succursales', async (req, res) => {
+  try {
+    const topSuccursales = await getTopSuccursalesByReservation();
+    res.json(topSuccursales);
+  } catch (error) {
+    console.error("Erreur route /top-succursales :", error.message);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 
 module.exports = router;

@@ -37,11 +37,11 @@ exports.register = async (req, res) => {
       prenom,
     });
 
-    // Associer le rôle
     const roleObj = await Role.findOne({ where: { role } });
     if (!roleObj) {
       return res.status(400).json({ message: "Rôle invalide." });
     }
+
     await UtilisateurRole.create({
       idutilisateur: nouvelUtilisateur.idutilisateur,
       idrole: roleObj.idrole,
@@ -65,7 +65,7 @@ exports.register = async (req, res) => {
 // Complétion du profil utilisateur
 exports.completeProfile = async (req, res) => {
   try {
-    const { idutilisateur } = req.user; // suppose un middleware d'authentification
+    const { idutilisateur } = req.user;
     const {
       adresse1,
       adresse2,
@@ -75,21 +75,18 @@ exports.completeProfile = async (req, res) => {
       pays,
       numerotelephone,
       numeromobile,
-      // Champs spécifiques client
       codeclient,
       numeropc,
       paysdelivrance,
       autoritedelivrance,
       datenaissance,
       dateexpiration,
-      // Champs spécifiques employé/admin
       codeemploye,
       dateembauche,
       datedepart,
       idsuccursale,
     } = req.body;
 
-    // Mise à jour du profil utilisateur
     await Utilisateur.update(
       {
         adresse1,
@@ -104,16 +101,15 @@ exports.completeProfile = async (req, res) => {
       { where: { idutilisateur } }
     );
 
-    // Récupérer le rôle de l'utilisateur
     const utilisateurRole = await UtilisateurRole.findOne({
       where: { idutilisateur },
     });
+
     const roleObj = await Role.findOne({
       where: { idrole: utilisateurRole.idrole },
     });
 
     if (roleObj.role === "client") {
-      // Créer ou mettre à jour le profil client
       await Client.upsert({
         idutilisateur,
         codeclient,
@@ -124,7 +120,6 @@ exports.completeProfile = async (req, res) => {
         dateexpiration,
       });
     } else if (roleObj.role === "employe" || roleObj.role === "admin") {
-      // Créer ou mettre à jour le profil employé (pour employe ET admin)
       await Employe.upsert({
         idutilisateur,
         codeemploye,
@@ -153,18 +148,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Identifiants invalides." });
     }
 
-    const passwordMatch = await bcrypt.compare(
-      motdepasse,
-      utilisateur.motdepasse
-    );
+    const passwordMatch = await bcrypt.compare(motdepasse, utilisateur.motdepasse);
     if (!passwordMatch) {
       return res.status(401).json({ message: "Identifiants invalides." });
     }
 
-    // Récupérer le rôle de l'utilisateur
     const utilisateurRole = await UtilisateurRole.findOne({
       where: { idutilisateur: utilisateur.idutilisateur },
     });
+
     let role = null;
     if (utilisateurRole) {
       const roleObj = await Role.findOne({
@@ -180,10 +172,10 @@ exports.login = async (req, res) => {
       prenom: utilisateur.prenom,
       role: role,
     };
+
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Enregistrer le refresh token en base
     await TokenSession.create({
       idutilisateur: utilisateur.idutilisateur,
       token: refreshToken,
@@ -194,20 +186,14 @@ exports.login = async (req, res) => {
     res.json({
       accessToken,
       refreshToken,
-      utilisateur: {
-        idutilisateur: utilisateur.idutilisateur,
-        email: utilisateur.email,
-        nom: utilisateur.nom,
-        prenom: utilisateur.prenom,
-        role: role,
-      },
+      utilisateur: payload,
     });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur.", error: error.message });
   }
 };
 
-// Rafraîchir le token d'accès
+// Rafraîchir le token
 exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -218,6 +204,7 @@ exports.refreshToken = async (req, res) => {
     const session = await TokenSession.findOne({
       where: { token: refreshToken, type: "refresh" },
     });
+
     if (!session) {
       return res.status(401).json({ message: "Refresh token invalide." });
     }
@@ -226,18 +213,10 @@ exports.refreshToken = async (req, res) => {
     try {
       payload = verifyToken(refreshToken);
     } catch (err) {
-      return res
-        .status(401)
-        .json({ message: "Refresh token expiré ou invalide." });
+      return res.status(401).json({ message: "Refresh token expiré ou invalide." });
     }
 
-    const newAccessToken = generateAccessToken({
-      idutilisateur: payload.idutilisateur,
-      email: payload.email,
-      nom: payload.nom,
-      prenom: payload.prenom,
-      role: payload.role,
-    });
+    const newAccessToken = generateAccessToken(payload);
 
     res.json({ accessToken: newAccessToken });
   } catch (error) {
@@ -245,8 +224,7 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-// Déconnexion utilisateur
-
+// Déconnexion
 exports.logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -254,7 +232,6 @@ exports.logout = async (req, res) => {
       return res.status(400).json({ message: "Refresh token requis." });
     }
 
-    // Décoder le refreshToken pour obtenir l'idutilisateur
     let decoded;
     try {
       decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
@@ -264,15 +241,12 @@ exports.logout = async (req, res) => {
 
     const idutilisateur = decoded.idutilisateur;
 
-    // Suppression du refreshToken pour cet utilisateur
     const result = await TokenSession.destroy({
-      where: { token: refreshToken, idutilisateur: idutilisateur },
+      where: { token: refreshToken, idutilisateur },
     });
 
     if (result === 0) {
-      return res
-        .status(404)
-        .json({ message: "Token non trouvé pour cet utilisateur." });
+      return res.status(404).json({ message: "Token non trouvé pour cet utilisateur." });
     }
 
     res.status(200).json({ message: "Déconnexion réussie." });
@@ -281,7 +255,7 @@ exports.logout = async (req, res) => {
   }
 };
 
-// Récupérer un utilisateur par son id
+// Récupération utilisateur
 exports.getUtilisateurById = async (req, res) => {
   try {
     const { idutilisateur } = req.params;
@@ -298,30 +272,42 @@ exports.getUtilisateurById = async (req, res) => {
   }
 };
 
+// ✅ Mise à jour utilisateur avec logs
 exports.updateUtilisateur = async (req, res) => {
   try {
     const { idutilisateur } = req.params;
-    const user = req.user; // injecté par le middleware JWT
+    const user = req.user;
+
+    console.log("🔵 Reçu PUT /utilisateurs/" + idutilisateur);
+    console.log("🔵 Utilisateur authentifié :", user);
+    console.log("🔵 Données reçues dans req.body :", req.body);
 
     const utilisateur = await Utilisateur.findByPk(idutilisateur);
     if (!utilisateur) {
+      console.log("❌ Utilisateur introuvable dans la base.");
       return res.status(404).json({ message: "Utilisateur non trouvé." });
     }
 
-    // Un client ne peut mettre à jour que son propre profil
-    if (
-      user.role === "client" &&
-      user.idutilisateur !== Number(idutilisateur)
-    ) {
+    if (user.role === "client" && user.idutilisateur !== Number(idutilisateur)) {
+      console.log("❌ Tentative de mise à jour d'un autre profil par un client.");
       return res.status(403).json({ message: "Accès interdit." });
     }
 
-    // Employé ou admin : peut mettre à jour n'importe quel utilisateur
-    await Utilisateur.update(req.body, { where: { idutilisateur } });
-    const updatedUtilisateur = await Utilisateur.findByPk(idutilisateur);
+    const [nbRowsAffected] = await Utilisateur.update(req.body, {
+      where: { idutilisateur },
+    });
 
+    if (nbRowsAffected === 0) {
+      console.log("⚠️ Aucun champ mis à jour.");
+    } else {
+      console.log(`✅ Mise à jour réussie pour l'utilisateur ID ${idutilisateur}`);
+    }
+
+    const updatedUtilisateur = await Utilisateur.findByPk(idutilisateur);
     res.json(updatedUtilisateur);
   } catch (err) {
+    console.error("❌ Erreur dans updateUtilisateur :", err.message);
+    console.error(err);
     res.status(400).json({
       message: "Erreur lors de la mise à jour de l'utilisateur.",
       error: err.message,

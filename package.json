@@ -1,0 +1,11 @@
+{
+  "name": "autonova",
+  "version": "1.0.0",
+  "scripts": {
+    "start:all": "concurrently \"npm start --prefix api-gateway\" \"npm start --prefix auth-service\" \"npm start --prefix client-frontend\" \"npm start --prefix client-service\" \"npm start --prefix dashboard-service\" \"npm start --prefix inspectionvehicule-service\" \"npm start --prefix Reservation-Service\" \"npm start --prefix succursale-service\" \"npm start --prefix taxe-service\" \"npm start --prefix utilisateur-service\" \"npm start --prefix vehicule-service\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "dependency-cruiser": "^16.10.3"
+  }
+}

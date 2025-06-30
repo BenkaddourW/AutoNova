@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const TaxeLocalite = require('./taxe_localite'); // Assurez-vous que le chemin est correct
 
 const Taxe = sequelize.define('Taxe', {
   idtaxe: {
@@ -29,5 +30,7 @@ const Taxe = sequelize.define('Taxe', {
   tableName: 'taxe',
   timestamps: false
 });
+
+Taxe.hasMany(TaxeLocalite, { as: 'localites', foreignKey: 'idtaxe' });
 
 module.exports = Taxe;
