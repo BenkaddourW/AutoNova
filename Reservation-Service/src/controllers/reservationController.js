@@ -73,14 +73,16 @@ exports.createReservation = asyncHandler(async (req, res) => {
  * @body {Object} Données à mettre à jour
  * @returns {Object} Réservation mise à jour
  */
+// Trouvez cette fonction :
 exports.updateReservation = asyncHandler(async (req, res) => {
   const reservation = await Reservation.findByPk(req.params.id);
   if (!reservation) {
     res.status(404);
     throw new Error("Réservation non trouvée");
   }
-  await reservation.update(req.body);
-  res.json(reservation);
+  // ✅ CORRECTION IMPORTANTE :
+  const updatedReservation = await reservation.update(req.body);
+  res.json(updatedReservation); // Renvoyer la version mise à jour
 });
 
 /**
