@@ -439,4 +439,92 @@ exports.getFeaturedVehicles = asyncHandler(async (req, res) => {
 });
 
 
+/**
+ * Recherche des véhicules disponibles selon plusieurs critères.
+ * Cette fonction interroge le service Réservation pour vérifier la disponibilité réelle des véhicules.
+ * 
+ * Étapes :
+ * 1. Construction de la requête de filtrage selon les critères reçus (succursale, modèle, marque, catégorie).
+ * 2. Récupération des véhicules correspondants en base, incluant leur image principale.
+ * 3. Extraction des identifiants des véhicules trouvés.
+ * 4. Appel au service Réservation pour obtenir la liste des véhicules réellement disponibles aux dates demandées.
+ * 5. Filtrage de la liste initiale pour ne conserver que les véhicules confirmés comme disponibles.
+ * 6. Formatage de la réponse pour le front-end, en ajoutant la photo principale si disponible.
+ * 
+ * @route GET /vehicules/disponibles
+ * @query {number} idsuccursale - Identifiant de la succursale (optionnel)
+ * @query {string} datedebut - Date de début de la période de location
+ * @query {string} datefin - Date de fin de la période de location
+ * @query {string} modele - Modèle du véhicule (optionnel)
+ * @query {string} marque - Marque du véhicule (optionnel)
+ * @query {string} categorie - Catégorie du véhicule (optionnel)
+ * @returns {Array} Liste des véhicules disponibles, chacun enrichi de sa photo principale si existante
+ */
+exports.getVehiculesDisponibles = asyncHandler(async (req, res) => {
+  try {
+    const { idsuccursale, datedebut, datefin, modele, marque, categorie } = req.query;
+
+    // 1. Construction du filtre pour la recherche en base (statut "disponible" obligatoire)
+    const where = {
+      statut: "disponible"
+    };
+    if (idsuccursale) where.succursaleidsuccursale = idsuccursale;
+    if (modele) where.modele = modele;
+    if (marque) where.marque = marque;
+    if (categorie) where.categorie = categorie;
+
+    // 2. Récupération des véhicules correspondant aux critères, avec leur image principale
+    const vehiculesPotentiels = await Vehicule.findAll({
+      where,
+      include: [
+        {
+          model: VehiculeImage,
+          as: "VehiculeImages", // L'alias doit correspondre à celui défini dans l'association des modèles
+          where: { estprincipale: true },
+          required: false, // LEFT JOIN pour inclure les véhicules sans image principale
+        },
+      ],
+    });
+
+    // Si aucun véhicule ne correspond aux critères, retourner un tableau vide
+    if (!vehiculesPotentiels.length) {
+      return res.json([]);
+    }
+
+    // 3. Extraction des identifiants des véhicules trouvés
+    const idsvehicules = vehiculesPotentiels.map((v) => v.idvehicule);
+
+    // 4. Appel au service Réservation pour vérifier la disponibilité réelle sur la période demandée
+    const response = await axios.post(
+      "http://localhost:3000/reservations/disponibilites", // À adapter si l'URL du service change
+      { idsvehicules, datedebut, datefin }
+    );
+
+    const idsDisponibles = response.data.disponibles;
+
+    // 5. Filtrage pour ne conserver que les véhicules confirmés comme disponibles
+    const vehiculesDisponibles = vehiculesPotentiels
+      .filter((v) => idsDisponibles.includes(v.idvehicule))
+      .map((v) => {
+        // Formatage de la réponse pour le front-end, ajout de la photo principale si existante
+        const vehiculeJson = v.toJSON();
+        return {
+          ...vehiculeJson,
+          photoPrincipale:
+            vehiculeJson.VehiculeImages && vehiculeJson.VehiculeImages.length > 0
+              ? vehiculeJson.VehiculeImages[0].urlimage
+              : null, // Valeur nulle si aucune image n'est disponible
+        }
+      });
+
+    res.json(vehiculesDisponibles);
+
+  } catch (err) {
+    console.error("Erreur dans getVehiculesDisponibles:", err);
+    res.status(500).json({
+      message: "Erreur lors de la recherche des véhicules disponibles.",
+      error: err.message,
+    });
+  }
+});
 

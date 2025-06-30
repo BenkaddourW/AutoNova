@@ -23,7 +23,8 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
-
+      // ✅✅✅ LA CORRECTION CRUCIALE EST ICI ✅✅✅
+      // On ajoute la définition de la colonne manquante pour que Sequelize la reconnaisse.
       modepaiement: {
         type: DataTypes.STRING,
         allowNull: false, // Doit correspondre à la contrainte NOT NULL de la BDD

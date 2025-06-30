@@ -1,11 +1,14 @@
-// paiement-service/src/controllers/paiementController.js (Version finale corrigée)
-
+const axios = require("axios");
 const Stripe = require("stripe");
 const { Paiement } = require("../models"); 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
- * Crée un PaymentIntent Stripe.
+ * Crée un PaymentIntent Stripe pour initier un paiement.
+ * @body {number} amount - Montant à payer (en cents).
+ * @body {string} currency - Devise (par défaut "cad").
+ * @body {Object} metadata - Métadonnées optionnelles à associer au paiement.
+ * @returns {Object} Informations nécessaires au front-end pour finaliser le paiement Stripe.
  */
 exports.createPaymentIntent = async (req, res) => {
   try {
@@ -32,27 +35,25 @@ exports.createPaymentIntent = async (req, res) => {
   }
 };
 
-
 /**
- * Enregistre un paiement dans la base de données après confirmation Stripe.
- */
-/**
- * Enregistre un paiement dans la base de données après confirmation Stripe.
- */
-/**
- * Enregistre un paiement dans la base de données.
- * Gère dynamiquement la présence ou l'absence des clés optionnelles
- * comme idcontrat et idfacture.
+ * Enregistre un paiement confirmé dans la base de données.
+ * Gère dynamiquement la présence ou l'absence des clés optionnelles (idcontrat, idfacture, etc.).
+ * @body {string} idintentstripe - Identifiant Stripe du paiement.
+ * @body {number} idclient - Identifiant du client.
+ * @body {number} idreservation - Identifiant de la réservation (optionnel).
+ * @body {number} idcontrat - Identifiant du contrat (optionnel).
+ * @body {string} modepaiement - Mode de paiement utilisé (ex : "card").
+ * @returns {Object} Paiement enregistré.
  */
 exports.enregistrerPaiement = async (req, res) => {
   try {
-    // On récupère TOUTES les données du body, y compris idreservation et modepaiement
+    // Récupère toutes les données nécessaires du corps de la requête
     const {
       idintentstripe,
       idclient,
-      idreservation, // <-- Très important de le récupérer
+      idreservation,
       idcontrat,
-      modepaiement, // <-- Important de le récupérer
+      modepaiement,
     } = req.body;
 
     const paymentIntent = await stripe.paymentIntents.retrieve(idintentstripe);
@@ -68,13 +69,10 @@ exports.enregistrerPaiement = async (req, res) => {
       statutpaiement: paymentIntent.status,
       datepaiement: new Date(),
       idclient: idclient,
-      idreservation: idreservation, // <-- Très important de l'inclure ici
-
-      // ✅ LA CORRECTION DÉFINITIVE : On utilise la valeur reçue, OU 'card' par défaut.
+      idreservation: idreservation,
       modepaiement: modepaiement || 'card', 
     };
     
-    // On gère le cas où idcontrat est optionnel
     if (idcontrat) {
         dataToCreate.idcontrat = idcontrat;
     }
@@ -87,19 +85,22 @@ exports.enregistrerPaiement = async (req, res) => {
     });
 
   } catch (err) {
-    // Log amélioré pour voir l'erreur complète dans la console du Paiement-Service
+    // Journalisation détaillée de l'erreur pour faciliter le débogage
     console.error("Erreur DÉTAILLÉE dans enregistrerPaiement:", err); 
     res.status(400).json({
       message: "Erreur lors de l'enregistrement du paiement.",
-      error: err.message, // On envoie le message d'erreur clair
+      error: err.message,
     });
   }
 };
+
 /**
- * Effectue un remboursement Stripe.
+ * Effectue un remboursement via Stripe et l'enregistre en base.
+ * @body {string} idintentstripe - Identifiant Stripe du paiement à rembourser.
+ * @body {number} montant - Montant à rembourser (optionnel, en dollars).
+ * @returns {Object} Détail du remboursement enregistré.
  */
 exports.rembourserPaiement = async (req, res) => {
-  // Votre logique de remboursement peut rester telle quelle, elle est déjà correcte.
   try {
     const { idintentstripe, montant } = req.body;
 
@@ -126,7 +127,6 @@ exports.rembourserPaiement = async (req, res) => {
       idreservation: paymentIntent.metadata.idreservation || null,
       idclient: paymentIntent.metadata.idclient || null,
       idcontrat: null,
-      
       datepaiement: new Date(),
     });
 
@@ -137,6 +137,56 @@ exports.rembourserPaiement = async (req, res) => {
   } catch (err) {
     res.status(400).json({
       message: "Erreur lors du remboursement.",
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * Enregistre un paiement manuel pour un contrat et active le contrat correspondant.
+ * @body {number} montant - Montant du paiement.
+ * @body {string} mode - Mode de paiement utilisé.
+ * @body {string} date - Date du paiement (optionnelle).
+ * @body {string} note - Note ou commentaire (optionnel).
+ * @body {number} idcontrat - Identifiant du contrat concerné.
+ * @returns {Object} Paiement enregistré et confirmation d'activation du contrat.
+ */
+exports.enregistrerPaiementContrat = async (req, res) => {
+  try {
+    const { montant, mode, date, note, idcontrat } = req.body;
+
+    const paiement = await Paiement.create({
+      montant,
+      modepaiement: mode,
+      datepaiement: date ? new Date(date) : new Date(),
+      note,
+      idcontrat,
+      idreservation: null,
+      typepaiement: "paiement",
+      statutpaiement: "succeeded",
+      devise: "CAD",
+      idintentstripe: `manuel-${Date.now()}`, // Génère un identifiant unique pour les paiements manuels
+      idfacture: null,
+    });
+
+    // Met à jour le statut du contrat à "actif" via le service Contrat
+    try {
+      await axios.patch(
+        `${process.env.GATEWAY_URL}/contrats/${idcontrat}/statut`, // Utilise GATEWAY_URL pour la cohérence environnementale
+        { statut: "actif" },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du statut du contrat :", err.message);
+    }
+
+    res.status(201).json({
+      message: "Paiement enregistré et contrat activé.",
+      paiement,
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: "Erreur lors de l'enregistrement du paiement du contrat.",
       error: err.message,
     });
   }

@@ -1,7 +1,7 @@
 /**
  * Contrôleur Succursale
  * ---------------------
- * Gère toutes les opérations liées aux succursales : CRUD, recherche, statistiques, et listes structurées pour les filtres.
+ * Gère toutes les opérations liées aux succursales : CRUD, recherche, statistiques et listes structurées pour les filtres.
  * Utilise Sequelize pour l'accès aux données et express-async-handler pour la gestion des erreurs asynchrones.
  */
 
@@ -188,11 +188,11 @@ exports.getDistinctCities = asyncHandler(async (req, res) => {
 });
 
 /**
- * Recherche les IDs de succursales correspondant à des critères stricts (pays, province, ville).
+ * Recherche les identifiants de succursales correspondant à des critères précis (pays, province, ville).
  * @route GET /succursales/find-ids
- * @param {Object} req - Requête Express, query : pays, province, ville.
+ * @param {Object} req - Requête Express, paramètres de requête : pays, province, ville.
  * @param {Object} res - Réponse Express.
- * @returns {Array} Liste des IDs de succursales.
+ * @returns {Array} Tableau des identifiants de succursales correspondant aux critères.
  */
 exports.findSuccursaleIds = asyncHandler(async (req, res) => {
     const { pays, province, ville } = req.query;
@@ -206,11 +206,11 @@ exports.findSuccursaleIds = asyncHandler(async (req, res) => {
 });
 
 /**
- * Récupère la liste des succursales (ID et nom) pour une ville donnée.
+ * Récupère la liste des succursales (identifiant et nom) pour une localisation donnée.
  * @route GET /succursales/by-location
- * @param {Object} req - Requête Express, query : country, province, city.
+ * @param {Object} req - Requête Express, paramètres de requête : country, province, city.
  * @param {Object} res - Réponse Express.
- * @returns {Array} Liste des succursales pour la localisation donnée.
+ * @returns {Array} Liste des succursales correspondant à la localisation spécifiée.
  */
 exports.getSuccursalesByLocation = asyncHandler(async (req, res) => {
     const { country, province, city } = req.query;

@@ -27,6 +27,9 @@ router.use(authenticate);
 router.post("/complete-profile", authController.completeProfile);
 
 
+router.get("/utilisateurs", authController.getUtilisateurs);
+router.post("/admin/create-user", authController.createUserByAdmin);
+
 // Récupérer un utilisateur par son id
 // Maintenant protégée par router.use(authenticate)
 router.get("/utilisateurs/:idutilisateur", authController.getUtilisateurById);
