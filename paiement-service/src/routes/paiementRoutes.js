@@ -11,4 +11,7 @@ router.post("/enregistrer", paiementController.enregistrerPaiement);
 // Effecture un remboursement Stripe et l’enregistre dans la base
 router.post("/rembourser", paiementController.rembourserPaiement);
 
+// Simulation d'un paiement pour un contrat (sans Stripe)
+router.post("/paiement-contrat", paiementController.enregistrerPaiementContrat);
+
 module.exports = router;

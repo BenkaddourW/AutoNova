@@ -140,7 +140,8 @@ exports.listerContratsClient = async (req, res) => {
   }
 };
 
-/** * Récupère un contrat par son ID.
+/**
+ * Récupère un contrat par son ID.
  * Autorisé aux employés et admins.
  * Retourne le contrat avec ses inspections associées et ses taxes.
  */
@@ -181,7 +182,7 @@ exports.getContratById = async (req, res) => {
         `http://localhost:3000/reservations/${contrat.idreservation}/full-details`,
         {
           headers: {
-            Authorization: req.headers.authorization, // transmet le même token reçu par le backend
+            Authorization: req.headers.authorization,
           },
         }
       );
@@ -197,7 +198,7 @@ exports.getContratById = async (req, res) => {
     const contratWithDetails = {
       ...contrat.toJSON(),
       taxes,
-      reservation, // contient aussi le véhicule et le client si le service réservation les inclut
+      reservation,
     };
 
     res.json(contratWithDetails);
@@ -205,5 +206,59 @@ exports.getContratById = async (req, res) => {
     res
       .status(500)
       .json({ message: "Erreur lors de la récupération du contrat" });
+  }
+};
+
+/**
+ * Cree une inspection pour un contrat.
+ * Autorisé aux employés et admins.
+ * Le body doit contenir les détails de l'inspection.
+ */
+
+exports.creerInspection = async (req, res) => {
+  try {
+    const {
+      dateinspection,
+      kilometrage,
+      niveaucarburant,
+      proprete,
+      note,
+      typeinspection,
+      idvehicule,
+      idcontrat,
+    } = req.body;
+
+    // Vérification des champs obligatoires
+    if (
+      !dateinspection ||
+      typeof kilometrage !== "number" ||
+      !niveaucarburant ||
+      typeof proprete !== "boolean" ||
+      !typeinspection ||
+      !idvehicule ||
+      !idcontrat
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Champs obligatoires manquants ou invalides" });
+    }
+
+    const inspection = await Inspection.create({
+      dateinspection,
+      kilometrage,
+      niveaucarburant,
+      proprete,
+      note,
+      typeinspection,
+      idvehicule,
+      idcontrat,
+    });
+
+    res.status(201).json(inspection);
+  } catch (error) {
+    console.error("Erreur lors de la création de l'inspection :", error);
+    res
+      .status(500)
+      .json({ message: "Erreur lors de la création de l'inspection" });
   }
 };

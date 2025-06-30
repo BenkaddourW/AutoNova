@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getContratById, updateContrat } from "../services/contratService";
+import {
+  getContratById,
+  updateContrat,
+  createInspection,
+} from "../services/contratService";
+import { payerContrat } from "../services/paiementService";
 import { useAuth } from "../context/AuthContext";
 
 // Styles réutilisables
@@ -17,34 +22,484 @@ const labelStyle = {
 };
 const valueStyle = { marginLeft: 8 };
 
-// Placeholders pour les formulaires Inspection et Paiement
-const InspectionForm = ({ contrat, onClose }) => (
-  <div
-    style={{
-      background: "#fff",
-      border: "1px solid #ccc",
-      padding: 24,
-      marginBottom: 24,
-    }}
-  >
-    <h3>Formulaire Inspection (à implémenter)</h3>
-    <button onClick={onClose}>Fermer</button>
-  </div>
-);
+// Formulaire Inspection adapté au modèle backend
+const InspectionForm = ({ contrat, onClose, onSaved }) => {
+  const lastInspection =
+    contrat.inspections && contrat.inspections.length > 0
+      ? contrat.inspections
+          .slice()
+          .sort(
+            (a, b) => new Date(b.dateinspection) - new Date(a.dateinspection)
+          )[0]
+      : null;
 
-const PaiementForm = ({ contrat, onClose }) => (
-  <div
-    style={{
-      background: "#fff",
-      border: "1px solid #ccc",
-      padding: 24,
-      marginBottom: 24,
-    }}
-  >
-    <h3>Formulaire Paiement (à implémenter)</h3>
-    <button onClick={onClose}>Fermer</button>
-  </div>
-);
+  const [form, setForm] = useState({
+    dateinspection: lastInspection
+      ? new Date(lastInspection.dateinspection).toISOString().slice(0, 16)
+      : new Date().toISOString().slice(0, 16),
+    kilometrage: lastInspection ? lastInspection.kilometrage : "",
+    niveaucarburant: lastInspection ? lastInspection.niveaucarburant : "",
+    proprete: lastInspection ? lastInspection.proprete : true,
+    note: lastInspection ? lastInspection.note : "",
+    typeinspection: lastInspection ? lastInspection.typeinspection : "Départ",
+  });
+
+  useEffect(() => {
+    if (lastInspection) {
+      setForm({
+        dateinspection: new Date(lastInspection.dateinspection)
+          .toISOString()
+          .slice(0, 16),
+        kilometrage: lastInspection.kilometrage,
+        niveaucarburant: lastInspection.niveaucarburant,
+        proprete: lastInspection.proprete,
+        note: lastInspection.note,
+        typeinspection: lastInspection.typeinspection,
+      });
+    }
+  }, [contrat]);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const { token } = useAuth() || {};
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const saveInspection = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await createInspection(
+        {
+          ...form,
+          dateinspection: new Date(form.dateinspection).toISOString(),
+          idvehicule: contrat.reservation?.Vehicule?.idvehicule,
+          idcontrat: contrat.idcontrat,
+        },
+        token
+      );
+      if (onSaved) onSaved("Inspection enregistrée !");
+      onClose();
+    } catch (e) {
+      setError("Erreur lors de l'enregistrement.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          position: "fixed",
+          zIndex: 1000,
+          left: 0,
+          top: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(20, 20, 30, 0.85)",
+        }}
+        onClick={onClose}
+      />
+      <div
+        style={{
+          background: "#23272f",
+          color: "#fff",
+          border: "1px solid #444",
+          padding: 28,
+          marginBottom: 24,
+          maxWidth: 500,
+          position: "fixed",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1001,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
+          borderRadius: 8,
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>Formulaire Inspection</h3>
+        <br />
+        {error && (
+          <div style={{ color: "#ff6b6b", marginBottom: 8 }}>{error}</div>
+        )}
+        <div>
+          <label>
+            Date inspection :
+            <input
+              type="datetime-local"
+              name="dateinspection"
+              value={form.dateinspection}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                background: "#181a20",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                padding: 8,
+              }}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            Kilométrage :
+            <input
+              type="number"
+              name="kilometrage"
+              value={form.kilometrage}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                background: "#181a20",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                padding: 8,
+              }}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            Niveau de carburant :
+            <input
+              type="text"
+              name="niveaucarburant"
+              value={form.niveaucarburant}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                background: "#181a20",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                padding: 8,
+              }}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            Propreté :
+            <input
+              type="checkbox"
+              name="proprete"
+              checked={form.proprete}
+              onChange={handleChange}
+              style={{ marginLeft: 8 }}
+            />{" "}
+            Propre
+          </label>
+        </div>
+        <br />
+        <div>
+          <label>
+            Type inspection :
+            <select
+              name="typeinspection"
+              value={form.typeinspection}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                background: "#181a20",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                padding: 8,
+              }}
+            >
+              <option value="Départ">Départ</option>
+              <option value="Retour">Retour</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>
+            Note :
+            <textarea
+              name="note"
+              value={form.note}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                marginBottom: 10,
+                background: "#181a20",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                padding: 8,
+                minHeight: 70,
+                resize: "vertical",
+              }}
+            />
+          </label>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 12,
+            marginTop: 18,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              background: "#444",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              padding: "8px 20px",
+              cursor: "pointer",
+            }}
+            disabled={saving}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={saveInspection}
+            style={{
+              background: "#1976d2",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              padding: "8px 24px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              opacity: saving ? 0.7 : 1,
+            }}
+            disabled={saving}
+          >
+            {saving ? "Enregistrement..." : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// Formulaire Paiement avec thème sombre
+const PaiementForm = ({ contrat, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    montant: (
+      Number(contrat.montantttc || 0) -
+      50 +
+      Number(contrat.reservation?.Vehicule?.montantcaution || 0)
+    ).toFixed(2),
+    mode: "carte",
+    date: new Date().toISOString().slice(0, 10),
+    note: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const { token } = useAuth() || {};
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePaiement = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await payerContrat(
+        {
+          montant: form.montant,
+          mode: form.mode,
+          date: form.date,
+          note: form.note,
+          idcontrat: contrat.idcontrat,
+          typepaiement: "paiement",
+          statutPaiement: "succeeded", // Ajouté pour forcer succeeded
+        },
+        token
+      );
+      if (onSaved) onSaved("Paiement effectué !");
+      onClose();
+    } catch (e) {
+      setError(
+        e?.response?.data?.message ||
+          "Erreur lors de la validation du paiement."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          position: "fixed",
+          zIndex: 1000,
+          left: 0,
+          top: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(20, 20, 30, 0.85)",
+        }}
+        onClick={onClose}
+      />
+      <div
+        style={{
+          background: "#23272f",
+          color: "#fff",
+          border: "1px solid #444",
+          padding: 28,
+          marginBottom: 24,
+          maxWidth: 500,
+          position: "fixed",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1001,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
+          borderRadius: 8,
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>Paiement du contrat</h3>
+        <br />
+        {error && (
+          <div style={{ color: "#ff6b6b", marginBottom: 8 }}>{error}</div>
+        )}
+        <form onSubmit={handlePaiement}>
+          <div style={{ marginBottom: 12 }}>
+            <label>
+              Montant à payer :
+              <input
+                type="number"
+                name="montant"
+                value={form.montant}
+                readOnly
+                style={{
+                  marginLeft: 8,
+                  width: 120,
+                  background: "#181a20",
+                  color: "#fff",
+                  border: "1px solid #444",
+                  borderRadius: 4,
+                  padding: 8,
+                }}
+              />{" "}
+              CAD
+            </label>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label>
+              Mode de paiement :
+              <select
+                name="mode"
+                value={form.mode}
+                onChange={handleChange}
+                style={{
+                  marginLeft: 8,
+                  background: "#181a20",
+                  color: "#fff",
+                  border: "1px solid #444",
+                  borderRadius: 4,
+                  padding: 8,
+                }}
+              >
+                <option value="carte">Carte</option>
+                <option value="espece">Espèce</option>
+              </select>
+            </label>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label>
+              Date du paiement :
+              <input
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={handleChange}
+                style={{
+                  marginLeft: 8,
+                  background: "#181a20",
+                  color: "#fff",
+                  border: "1px solid #444",
+                  borderRadius: 4,
+                  padding: 8,
+                }}
+              />
+            </label>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label>
+              Note :
+              <input
+                type="text"
+                name="note"
+                value={form.note}
+                onChange={handleChange}
+                style={{
+                  marginLeft: 8,
+                  width: 180,
+                  background: "#181a20",
+                  color: "#fff",
+                  border: "1px solid #444",
+                  borderRadius: 4,
+                  padding: 8,
+                }}
+                placeholder="Référence ou note (optionnel)"
+              />
+            </label>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "#444",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                padding: "8px 20px",
+                cursor: "pointer",
+              }}
+              disabled={saving}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              style={{
+                background: "#1976d2",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                padding: "8px 24px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                opacity: saving ? 0.7 : 1,
+              }}
+              disabled={saving}
+            >
+              {saving ? "Enregistrement..." : "Valider"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+};
 
 const ContratEditPage = () => {
   const { id } = useParams();
@@ -65,20 +520,29 @@ const ContratEditPage = () => {
     return d.toISOString().slice(0, 16);
   };
 
-  useEffect(() => {
+  // Fonction pour recharger le contrat après création d'une inspection ou paiement
+  const reloadContrat = async () => {
     setLoading(true);
-    getContratById(id, token)
-      .then((data) => {
-        setContrat(data);
-        setForm({
-          montant: data.montant,
-          montantttc: data.montantttc,
-          statut: data.statut,
-          dateretourprevue: formatDateForInput(data.dateretourprevue),
-        });
-      })
-      .catch(() => setError("Erreur lors du chargement du contrat"))
-      .finally(() => setLoading(false));
+    setError("");
+    try {
+      const data = await getContratById(id, token);
+      setContrat(data);
+      setForm({
+        montant: data.montant,
+        montantttc: data.montantttc,
+        statut: data.statut,
+        dateretourprevue: formatDateForInput(data.dateretourprevue),
+      });
+    } catch {
+      setError("Erreur lors du chargement du contrat");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reloadContrat();
+    // eslint-disable-next-line
   }, [id, token]);
 
   const handleChange = (e) => {
@@ -106,11 +570,21 @@ const ContratEditPage = () => {
     }
   };
 
+  // Affichage du message de succès après création inspection ou paiement
+  const handleInspectionSaved = (msg) => {
+    setSuccess(msg);
+    reloadContrat();
+  };
+
+  const handlePaiementSaved = (msg) => {
+    setSuccess(msg);
+    reloadContrat();
+  };
+
   if (loading) return <div>Chargement...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
   if (!contrat) return <div>Contrat introuvable.</div>;
 
-  // Raccourcis pour les infos liées
   const vehicule = contrat.reservation?.Vehicule || {};
   const client = contrat.reservation?.Client?.utilisateur || {};
   const succLiv = contrat.reservation?.SuccursaleLivraison || {};
@@ -133,12 +607,14 @@ const ContratEditPage = () => {
         <InspectionForm
           contrat={contrat}
           onClose={() => setShowInspectionForm(false)}
+          onSaved={handleInspectionSaved}
         />
       )}
       {showPaiementForm && (
         <PaiementForm
           contrat={contrat}
           onClose={() => setShowPaiementForm(false)}
+          onSaved={handlePaiementSaved}
         />
       )}
 
@@ -239,18 +715,87 @@ const ContratEditPage = () => {
             </div>
             {vehicule.VehiculeImages && vehicule.VehiculeImages.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <span style={labelStyle}>Images :</span>
-                <span>
-                  {vehicule.VehiculeImages.map((img) => (
+                <span style={labelStyle}>Image principale :</span>
+                {(() => {
+                  const mainImage =
+                    vehicule.VehiculeImages.find((img) => img.estprincipale) ||
+                    vehicule.VehiculeImages[0];
+                  return (
                     <img
-                      key={img.idimage}
-                      src={img.urlimage}
+                      src={mainImage.urlimage}
                       alt="Véhicule"
-                      style={{ width: 80, borderRadius: 4, marginRight: 8 }}
+                      style={{
+                        width: 260,
+                        borderRadius: 10,
+                        marginLeft: 16,
+                        boxShadow: "0 4px 24px #0003",
+                        border: "2px solid #1976d2",
+                        objectFit: "cover",
+                      }}
                     />
-                  ))}
-                </span>
+                  );
+                })()}
               </div>
+            )}
+          </div>
+
+          {/* Section Inspection (affichage de la dernière inspection seulement) */}
+          <div style={sectionStyle}>
+            <h3>Etat du véhicule</h3>
+            <br />
+            {contrat.inspections && contrat.inspections.length > 0 ? (
+              (() => {
+                const lastInspection = contrat.inspections
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(b.dateinspection) - new Date(a.dateinspection)
+                  )[0];
+                return (
+                  <div style={{ marginBottom: 12 }}>
+                    <div>
+                      <span style={labelStyle}>Date :</span>
+                      <span style={valueStyle}>
+                        {lastInspection.dateinspection
+                          ? new Date(
+                              lastInspection.dateinspection
+                            ).toLocaleString("fr-CA")
+                          : ""}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={labelStyle}>Kilométrage :</span>
+                      <span style={valueStyle}>
+                        {lastInspection.kilometrage}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={labelStyle}>Niveau carburant :</span>
+                      <span style={valueStyle}>
+                        {lastInspection.niveaucarburant}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={labelStyle}>Propreté :</span>
+                      <span style={valueStyle}>
+                        {lastInspection.proprete ? "Oui" : "Non"}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={labelStyle}>Type inspection :</span>
+                      <span style={valueStyle}>
+                        {lastInspection.typeinspection}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={labelStyle}>Note :</span>
+                      <span style={valueStyle}>{lastInspection.note}</span>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div>Aucune inspection enregistrée.</div>
             )}
           </div>
 
@@ -351,13 +896,11 @@ const ContratEditPage = () => {
             >
               Total TTC : CAD {Number(contrat.montantttc).toFixed(2)}
             </div>
-            {/* Ajout du versement réservation */}
             <div
               style={{ marginTop: 8, textAlign: "right", fontWeight: "bold" }}
             >
               Versement Réservation : - CAD 50.00
             </div>
-            {/* Ajout de la caution */}
             <div
               style={{ marginTop: 8, textAlign: "right", fontWeight: "bold" }}
             >
@@ -366,7 +909,6 @@ const ContratEditPage = () => {
                 ? Number(vehicule.montantcaution).toFixed(2)
                 : "0.00"}
             </div>
-            {/* Ajout du total à payer */}
             <div
               style={{
                 marginTop: 8,
@@ -414,8 +956,10 @@ const ContratEditPage = () => {
                 color: "#fff",
                 border: "none",
                 borderRadius: 4,
-                cursor: "pointer",
+                cursor: contrat.statut === "actif" ? "not-allowed" : "pointer",
+                opacity: contrat.statut === "actif" ? 0.5 : 1,
               }}
+              disabled={contrat.statut === "actif"}
             >
               Paiement
             </button>

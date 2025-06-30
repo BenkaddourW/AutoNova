@@ -51,3 +51,29 @@ export async function creerContrat(reservation, token) {
   }
   return data;
 }
+
+//Fonction pour creer une inspectionexport async function createInspection(data, token) {
+export async function createInspection(data, token) {
+  const CONTRATS_API_URL = import.meta.env.VITE_API_CONTRATS_URL;
+  const response = await fetch(`${CONTRATS_API_URL}/inspections`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      dateinspection: data.dateinspection, // format ISO string
+      kilometrage: Number(data.kilometrage),
+      niveaucarburant: data.niveaucarburant,
+      proprete: Boolean(data.proprete),
+      typeinspection: data.typeinspection,
+      idvehicule: Number(data.idvehicule),
+      idcontrat: Number(data.idcontrat),
+      note: data.note || "",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error("Erreur lors de la création de l'inspection");
+  }
+  return await response.json();
+}

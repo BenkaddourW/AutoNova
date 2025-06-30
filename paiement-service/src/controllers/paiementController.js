@@ -1,7 +1,10 @@
 const Stripe = require("stripe");
 const axios = require("axios");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-const { Paiement } = require("../models/paiement"); // Assure-toi d'importer correctement ton modèle
+
+const sequelize = require("../config/database");
+const Sequelize = require("sequelize");
+const Paiement = require("../models/paiement")(sequelize, Sequelize.DataTypes);
 
 /**
  * Crée un PaymentIntent Stripe et retourne le clientSecret au frontend
@@ -77,12 +80,10 @@ exports.enregistrerPaiement = async (req, res) => {
       console.error("Erreur lors de la mise à jour du contrat :", err.message);
     }
 
-    res
-      .status(201)
-      .json({
-        message: "Paiement enregistré et contrat mis à jour.",
-        paiement,
-      });
+    res.status(201).json({
+      message: "Paiement enregistré et contrat mis à jour.",
+      paiement,
+    });
   } catch (err) {
     res.status(400).json({
       message: "Erreur lors de l'enregistrement du paiement.",
@@ -148,6 +149,64 @@ exports.rembourserPaiement = async (req, res) => {
   } catch (err) {
     res.status(400).json({
       message: "Erreur lors du remboursement.",
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * Simule un paiement pour un contrat (sans Stripe).
+ * Enregistre le paiement dans la base et met à jour le statut du contrat à "actif".
+ */
+exports.enregistrerPaiementContrat = async (req, res) => {
+  try {
+    const {
+      montant,
+      mode, // "carte" ou "espece"
+      date,
+      note,
+      idcontrat,
+    } = req.body;
+
+    // Enregistre le paiement dans la base
+    const paiement = await Paiement.create({
+      montant,
+      modepaiement: mode,
+      datepaiement: date ? new Date(date) : new Date(),
+      note,
+      idcontrat,
+      idreservation: null, // Pas de réservation associée
+      typepaiement: "paiement",
+      statutpaiement: "succeeded",
+      devise: "CAD",
+      idintentstripe: "simulation", // valeur factice pour respecter le modèle
+      idfacture: null,
+    });
+
+    // Appel au service contrat pour mettre à jour le statut à "actif"
+    try {
+      await axios.patch(
+        `${
+          process.env.CONTRAT_SERVICE_URL || "http://localhost:3000/contrats"
+        }/${idcontrat}/statut`,
+        { statut: "actif" },
+        {
+          headers: {
+            Authorization: req.headers.authorization,
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du contrat :", err.message);
+    }
+
+    res.status(201).json({
+      message: "Paiement simulé et contrat activé.",
+      paiement,
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: "Erreur lors de la simulation du paiement.",
       error: err.message,
     });
   }

@@ -11,6 +11,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(8, 2), // NUMERIC(8,2) : 8 chiffres, 2 décimales
         allowNull: false,
       },
+      modepaiement: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       devise: {
         type: DataTypes.STRING(10),
         allowNull: false,
@@ -34,10 +38,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       idcontrat: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      idfacture: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
