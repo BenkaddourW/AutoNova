@@ -1,28 +1,38 @@
 // Fichier : services/reservationService.js
 
-const axios = require('axios');
-const { getServiceUrl } = require('../lib/consul-client');
+const axios = require("axios");
+const { getServiceUrl } = require("../lib/consul-client");
 
 // --- FONCTIONS EXISTANTES (INCHANGÉES) ---
 
 async function getReservationCountBySuccursale() {
   try {
-    const baseUrl = await getServiceUrl('reservation-service');
-    const { data } = await axios.get(`${baseUrl}/reservations/stats/by-succursale`);
+    const baseUrl = await getServiceUrl("reservation-service");
+    const { data } = await axios.get(
+      `${baseUrl}/reservations/stats/by-succursale`
+    );
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (by-succursale):', error.message);
+    console.error(
+      "Erreur de com. avec reservation-service (by-succursale):",
+      error.message
+    );
     throw error; // Propage l'erreur pour que Promise.all échoue
   }
 }
 
 async function getActiveReservationCount() {
   try {
-    const baseUrl = await getServiceUrl('reservation-service');
-    const { data } = await axios.get(`${baseUrl}/reservations/stats/active-count`);
+    const baseUrl = await getServiceUrl("reservation-service");
+    const { data } = await axios.get(
+      `${baseUrl}/reservations/stats/active-count`
+    );
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (active-count):', error.message);
+    console.error(
+      "Erreur de com. avec reservation-service (active-count):",
+      error.message
+    );
     throw error;
   }
 }
@@ -49,11 +59,16 @@ async function getActiveReservationCount() {
  */
 async function getMonthlyEvolution() {
   try {
-    const baseUrl = await getServiceUrl('reservation-service');
-    const { data } = await axios.get(`${baseUrl}/reservations/stats/monthly-evolution`);
+    const baseUrl = await getServiceUrl("reservation-service");
+    const { data } = await axios.get(
+      `${baseUrl}/reservations/stats/monthly-evolution`
+    );
     return data;
   } catch (error) {
-    console.error('Erreur de com. avec reservation-service (monthly-evolution):', error.message);
+    console.error(
+      "Erreur de com. avec reservation-service (monthly-evolution):",
+      error.message
+    );
     throw error;
   }
 }
@@ -61,21 +76,28 @@ async function getMonthlyEvolution() {
 // --- ✅ NOUVEAU : Appel pour top succursales par réservation ---
 async function getTopSuccursalesByReservation() {
   try {
-    const reservationUrl = await getServiceUrl('reservation-service');
-    const succursaleUrl = await getServiceUrl('succursale-service');
+    const reservationUrl = await getServiceUrl("reservation-service");
+    const succursaleUrl = await getServiceUrl("succursale-service");
 
     // 1. Récupère les 3 meilleures succursales selon le nombre de réservations
-    const { data: topRaw } = await axios.get(`${reservationUrl}/reservations/stats/top-succursales`);
-
+    const { data: topRaw } = await axios.get(
+      `${reservationUrl}/reservations/stats/top-succursales`
+    );
+    console.log("Réponse brute topRaw:", topRaw);
     // 2. Récupère la liste complète des succursales avec noms
-    const { data: succursales } = await axios.get(`${succursaleUrl}/succursales/all-list`);
+    const { data: succursales } = await axios.get(
+      `${succursaleUrl}/succursales/all-list`
+    );
 
     // 3. Fusionne pour obtenir le nom de chaque succursale dans le top
-    const topFinal = topRaw.map(row => {
-      const match = succursales.find(s => s.idsuccursale === row.idsuccursalelivraison);
+    const topFinal = topRaw.map((row) => {
+      const match = succursales.find(
+        (s) => s.idsuccursale === row.idsuccursalelivraison
+      );
       return {
         ...row,
-        nomsuccursale: match?.nomsuccursale || `Succursale ${row.idsuccursalelivraison}`
+        nomsuccursale:
+          match?.nomsuccursale || `Succursale ${row.idsuccursalelivraison}`,
       };
     });
 
@@ -86,13 +108,12 @@ async function getTopSuccursalesByReservation() {
   }
 }
 
-
 // --- MISE À JOUR DE L'EXPORT ---
 // Assurez-vous d'exporter TOUTES les fonctions que vous utilisez.
-module.exports = { 
+module.exports = {
   getReservationCountBySuccursale,
   getActiveReservationCount,
   // getRecentReservations,      // <--- AJOUTÉ
   getMonthlyEvolution,
-  getTopSuccursalesByReservation,        // <--- AJOUTÉ
+  getTopSuccursalesByReservation, // <--- AJOUTÉ
 };

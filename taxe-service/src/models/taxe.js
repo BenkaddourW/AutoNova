@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
+const TaxeLocalite = require("./taxe_localite"); // Assurez-vous que le chemin est correct
 
 const Taxe = sequelize.define(
   "Taxe",
@@ -7,6 +8,7 @@ const Taxe = sequelize.define(
     idtaxe: {
       type: DataTypes.INTEGER,
       primaryKey: true,
+      allowNull: false,
       autoIncrement: true,
     },
     denomination: {
@@ -33,12 +35,6 @@ const Taxe = sequelize.define(
   }
 );
 
-// Association avec TaxesContrat
-Taxe.associate = (models) => {
-  Taxe.hasMany(models.TaxesContrat, {
-    foreignKey: "idtaxe",
-    as: "taxesContrat",
-  });
-};
+Taxe.hasMany(TaxeLocalite, { as: "localites", foreignKey: "idtaxe" });
 
 module.exports = Taxe;

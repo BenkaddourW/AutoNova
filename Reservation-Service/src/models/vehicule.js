@@ -1,18 +1,18 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
-
-const Vehicule = sequelize.define(
-  "Vehicule",
-  {
-    idvehicule: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
+module.exports = (sequelize, DataTypes) => {
+  const Vehicule = sequelize.define(
+    "Vehicule",
+    {
+      idvehicule: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
+      // Autres champs ici
     },
-  },
-  {
-    tableName: "vehicule",
-    timestamps: false,
-  }
-);
+    {
+      tableName: "vehicule",
+      timestamps: false,
+    }
+  );
 
-module.exports = Vehicule;
+  return Vehicule;
+};

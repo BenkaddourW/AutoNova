@@ -3,7 +3,7 @@ const sequelize = require("../config/database");
 
 // Ajoute ces imports :
 const Role = require("./role");
-const Employe = require("./employe");
+const Employe = require("./employe.js");
 const UtilisateurRole = require("./utilisateur_role");
 
 const Utilisateur = sequelize.define(

@@ -20,4 +20,7 @@ router.get("/clients/:idclient", clientController.getClient);
 // Mettre à jour un client par id (employé/admin uniquement)
 router.put("/clients/:idclient", clientController.updateClient);
 
+// Récupérer le client par idutilisateur (pour les employés/admins)
+router.get("/clients/by-user/:id", clientController.getClientByUserId);
+
 module.exports = router;

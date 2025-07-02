@@ -169,6 +169,62 @@ exports.getTaxesByLocalite = asyncHandler(async (req, res) => {
   res.json(taxes);
 });
 
+/**
+ * Calcule les taxes applicables pour une localité et un montant donné.
+ * Retourne le détail de chaque taxe, le total des taxes et le montant TTC.
+ * @body {string} pays - Pays concerné
+ * @body {string} province - Province concernée
+ * @body {number} montant_hors_taxe - Montant de base sur lequel appliquer les taxes
+ * @returns {Object} Détail des taxes, total des taxes et montant TTC
+ */
+exports.calculateTaxes = asyncHandler(async (req, res) => {
+  const { pays, province, montant_hors_taxe } = req.body;
+
+  if (!pays || !province || montant_hors_taxe === undefined) {
+    return res.status(400).json({
+      message:
+        "Les paramètres pays, province et montant_hors_taxe sont requis.",
+    });
+  }
+
+  // 1. Recherche des taxes applicables à la localité
+  const taxesApplicables = await Taxe.findAll({
+    include: [
+      {
+        model: TaxeLocalite,
+        as: "localites",
+        where: { pays, province },
+        required: true, // Ne retourne que les taxes qui ont une entrée pour cette localité
+      },
+    ],
+  });
+
+  // 2. Calcul des montants de chaque taxe
+  let totalTaxes = 0;
+  const taxesDetail = taxesApplicables.map((taxe) => {
+    const montantTaxe =
+      (Number(montant_hors_taxe) * parseFloat(taxe.taux)) / 100;
+    totalTaxes += montantTaxe;
+    return {
+      idtaxe: taxe.idtaxe,
+      denomination: taxe.denomination,
+      abrege: taxe.abrege,
+      taux: taxe.taux,
+      montant: montantTaxe.toFixed(2),
+    };
+  });
+
+  // 3. Préparation de la réponse
+  const response = {
+    montant_hors_taxe: Number(montant_hors_taxe).toFixed(2),
+    taxes_detail: taxesDetail,
+    total_taxes: totalTaxes.toFixed(2),
+    montant_ttc: (Number(montant_hors_taxe) + totalTaxes).toFixed(2),
+  };
+
+  res.json(response);
+});
+
 /** * @desc Récupère une seule taxe par son ID
  * @route GET /api/taxes/:id   * @access Public
  */

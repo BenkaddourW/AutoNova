@@ -21,10 +21,10 @@ import UtilisateurFilters from "../components/UtilisateurFilters";
 import PieChart from "../components/PieChart";
 import BarChart from "../components/BarChart";
 import { useAuth } from "../context/AuthContext";
+import { User, ShieldCheck, Briefcase, UserCircle } from "lucide-react";
 
 const UtilisateursPage = () => {
   const [utilisateurs, setUtilisateurs] = useState([]);
-  const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({
     nom: "",
     prenom: "",
@@ -67,20 +67,7 @@ const UtilisateursPage = () => {
     };
     delete apiFilters.succursale;
 
-    // Récupère les stats (en cas d'erreur, n'empêche pas la suite)
-    try {
-      const statsData = await utilisateurService.getUtilisateurStats(token);
-      setStats(statsData);
-    } catch (err) {
-      setStats(null);
-      setNotification({
-        show: true,
-        type: "error",
-        message: "Erreur lors de la récupération des statistiques",
-      });
-    }
-
-    // Récupère les utilisateurs (en cas d'erreur, affiche la notif mais ne touche pas aux stats)
+    // Récupère les utilisateurs (en cas d'erreur, affiche la notif)
     try {
       const utilisateursData = await utilisateurService.getUtilisateurs(
         apiFilters,
@@ -158,6 +145,18 @@ const UtilisateursPage = () => {
     }
   };
 
+  // --- Calcul des statistiques à partir de la liste ---
+  const total = utilisateurs.length;
+  const admins = utilisateurs.filter((u) =>
+    u.Roles?.some((r) => r.role === "admin")
+  ).length;
+  const employes = utilisateurs.filter((u) =>
+    u.Roles?.some((r) => r.role === "employe")
+  ).length;
+  const clients = utilisateurs.filter((u) =>
+    u.Roles?.some((r) => r.role === "client")
+  ).length;
+
   return (
     <div className="space-y-8">
       {notification.show && (
@@ -182,7 +181,7 @@ const UtilisateursPage = () => {
       </div>
 
       {/* Dashboard Statistiques */}
-      {loading && !stats ? (
+      {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-pulse">
           {[...Array(3)].map((_, i) => (
             <div
@@ -192,10 +191,11 @@ const UtilisateursPage = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StatCard title="Total utilisateurs" value={stats?.total || 0} />
-          <StatCard title="Admins" value={stats?.admins || 0} />
-          <StatCard title="Employés" value={stats?.employes || 0} />
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+          <StatCard title="Total utilisateurs" value={total} icon={User} />
+          <StatCard title="Admins" value={admins} icon={ShieldCheck} />
+          <StatCard title="Employés" value={employes} icon={Briefcase} />
+          <StatCard title="Clients" value={clients} icon={UserCircle} />
         </div>
       )}
 
@@ -231,4 +231,5 @@ const UtilisateursPage = () => {
     </div>
   );
 };
+
 export default UtilisateursPage;

@@ -1,41 +1,44 @@
-const sequelize = require("../config/database");
-const { DataTypes } = require("sequelize");
-const Reservation = require("../models/reservation")(sequelize, DataTypes);
-const Client = require("../models/client");
-const Vehicule = require("../models/vehicule");
-const Paiement = require("../models/paiement");
-const Succursale = require("../models/succursale");
+/**
+ * Reservation Controller
+ * ---------------------
+ * Gère toutes les opérations liées aux réservations : CRUD, statistiques, orchestration de paiement.
+ *
+ * Dépendances :
+ * - Modèles Sequelize (Reservation, Client, Vehicule, Paiement, Succursale, TaxesReservation)
+ * - Stripe (paiement)
+ * - Axios (appels inter-services)
+ *
+ * Toutes les fonctions sont asynchrones et gèrent les erreurs via express-async-handler.
+ */
+
+const {
+  Reservation,
+  Client,
+  Vehicule,
+  Paiement,
+  Succursale,
+  TaxesReservation,
+} = require("../models");
+
+const Stripe = require("stripe");
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
 const asyncHandler = require("express-async-handler");
 const { Op, Sequelize } = require("sequelize");
 const axios = require("axios");
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3000";
-async function verifyForeignKeys(body) {
-  const {
-    idclient,
-    idvehicule,
-    idpaiement,
-    idsuccursalelivraison,
-    idsuccursaleretour,
-  } = body;
+const { differenceInDays } = require("date-fns");
+const sequelize = require("../config/database");
 
-  const client = await Client.findByPk(idclient);
-  if (!client) return { ok: false, message: "Client non trouvé" };
-
-  const vehicule = await Vehicule.findByPk(idvehicule);
-  if (!vehicule) return { ok: false, message: "Véhicule non trouvé" };
-
-  const paiement = await Paiement.findByPk(idpaiement);
-  if (!paiement) return { ok: false, message: "Paiement non trouvé" };
-
-  const succLiv = await Succursale.findByPk(idsuccursalelivraison);
-  if (!succLiv)
-    return { ok: false, message: "Succursale livraison non trouvée" };
-
-  const succRet = await Succursale.findByPk(idsuccursaleretour);
-  if (!succRet) return { ok: false, message: "Succursale retour non trouvée" };
-
-  return { ok: true };
-}
+// /**
+//  * Récupère toutes les réservations.
+//  * @route GET /reservations
+//  * @returns {Array} Liste des réservations
+//  */
+// exports.getReservations = asyncHandler(async (req, res) => {
+//   const reservations = await Reservation.findAll();
+//   res.json(reservations);
+// });
 
 // AFFICHER TOUTES LES RÉSERVATIONS OU FILTRÉES
 exports.getReservations = asyncHandler(async (req, res) => {
@@ -64,7 +67,12 @@ exports.getReservations = asyncHandler(async (req, res) => {
   res.json(reservations);
 });
 
-// AFFICHER UNE RÉSERVATION PAR ID
+/**
+ * Récupère une réservation par son ID.
+ * @route GET /reservations/:id
+ * @param {number} id - ID de la réservation
+ * @returns {Object} Détails de la réservation
+ */
 exports.getReservationById = asyncHandler(async (req, res) => {
   const reservation = await Reservation.findByPk(req.params.id);
   if (!reservation) {
@@ -74,37 +82,42 @@ exports.getReservationById = asyncHandler(async (req, res) => {
   res.json(reservation);
 });
 
-// CRÉER UNE NOUVELLE RÉSERVATION
+/**
+ * Crée une nouvelle réservation.
+ * @route POST /reservations
+ * @body {Object} Données de la réservation
+ * @returns {Object} Réservation créée
+ */
 exports.createReservation = asyncHandler(async (req, res) => {
-  const check = await verifyForeignKeys(req.body);
-  if (!check.ok) {
-    res.status(400);
-    throw new Error(check.message);
-  }
   const newReservation = await Reservation.create(req.body);
   res.status(201).json(newReservation);
 });
 
-// METTRE À JOUR UNE RÉSERVATION
+/**
+ * Met à jour une réservation existante.
+ * @route PUT /reservations/:id
+ * @param {number} id - ID de la réservation
+ * @body {Object} Données à mettre à jour
+ * @returns {Object} Réservation mise à jour
+ */
+// Trouvez cette fonction :
 exports.updateReservation = asyncHandler(async (req, res) => {
   const reservation = await Reservation.findByPk(req.params.id);
   if (!reservation) {
     res.status(404);
     throw new Error("Réservation non trouvée");
   }
-  const check = await verifyForeignKeys({
-    ...reservation.dataValues,
-    ...req.body,
-  });
-  if (!check.ok) {
-    res.status(400);
-    throw new Error(check.message);
-  }
-  await reservation.update(req.body);
-  res.json(reservation);
+  // ✅ CORRECTION IMPORTANTE :
+  const updatedReservation = await reservation.update(req.body);
+  res.json(updatedReservation); // Renvoyer la version mise à jour
 });
 
-// SUPPRIMER UNE RÉSERVATION
+/**
+ * Supprime une réservation.
+ * @route DELETE /reservations/:id
+ * @param {number} id - ID de la réservation
+ * @returns {void}
+ */
 exports.deleteReservation = asyncHandler(async (req, res) => {
   const reservation = await Reservation.findByPk(req.params.id);
   if (!reservation) {
@@ -115,6 +128,52 @@ exports.deleteReservation = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
+/**
+ * Vérifie la disponibilité d'une liste de véhicules pour une période donnée.
+ * @route POST /reservations/disponibilites
+ * @body {Array} idsvehicules - Liste des IDs de véhicules
+ * @body {string} datedebut - Date de début
+ * @body {string} datefin - Date de fin
+ * @returns {Array} IDs des véhicules disponibles
+ */
+// exports.getDisponibilites = asyncHandler(async (req, res) => {
+//     const { idsvehicules, datedebut, datefin } = req.body;
+
+//     // La validation des paramètres est une bonne pratique.
+//     if (!Array.isArray(idsvehicules) || !datedebut || !datefin) {
+//       res.status(400); // Bad Request
+//       throw new Error("Les paramètres 'idsvehicules', 'datedebut' et 'datefin' sont requis et doivent être valides.");
+//     }
+
+//     // Recherche des réservations qui se chevauchent avec la période demandée.
+//     const reservations = await Reservation.findAll({
+//       where: {
+//         idvehicule: { [Op.in]: idsvehicules },
+//         [Op.or]: [
+//           { // Une réservation existante commence avant et se termine après la période demandée (englobante).
+//             daterdv: { [Op.lte]: datefin },
+//             dateretour: { [Op.gte]: datedebut },
+//           },
+//           { // Une réservation existante commence pendant la période demandée.
+//             daterdv: { [Op.between]: [datedebut, datefin] },
+//           },
+//           { // Une réservation existante se termine pendant la période demandée.
+//             dateretour: { [Op.between]: [datedebut, datefin] },
+//           },
+//         ],
+//       },
+//     });
+
+//     // On crée un Set des IDs des véhicules déjà réservés pour une recherche efficace.
+//     const indisponiblesIds = new Set(reservations.map((r) => r.idvehicule));
+
+//     // On filtre la liste initiale des IDs pour ne garder que ceux qui ne sont pas dans le Set des indisponibles.
+//     const disponibles = idsvehicules.filter(
+//       (id) => !indisponiblesIds.has(id)
+//     );
+
+//     res.json({ disponibles });
+// });
 // Vérifie la disponibilité d'une liste de véhicules pour une période donnée
 exports.getDisponibilites = async (req, res) => {
   try {
@@ -153,6 +212,7 @@ exports.getDisponibilites = async (req, res) => {
     });
   }
 };
+
 // === FONCTIONS POUR LE DASHBOARD ===
 
 // RÉCUPÉRER LES 5 DERNIÈRES RÉSERVATIONS
@@ -173,24 +233,15 @@ exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
   const today = new Date();
   const count = await Reservation.count({
     where: {
-      // Statut indiquant une location en cours ou confirmée
-      statut: {
-        [Op.in]: ["Confirmée", "Active"],
-      },
-      // La date de début est aujourd'hui ou dans le passé
-      daterdv: {
-        [Op.lte]: today,
-      },
-      // La date de fin est aujourd'hui ou dans le futur
-      dateretour: {
-        [Op.gte]: today,
-      },
+      statut: { [Op.in]: ["Confirmée", "Active"] },
+      daterdv: { [Op.lte]: today },
+      dateretour: { [Op.gte]: today },
     },
   });
   res.json({ count });
 });
 
-// RÉCUPÉRER L'ÉVOLUTION MENSUELLE
+// RÉCUPÉRER LE NOMBRE DE RÉSERVATIONS PAR MOIS SUR LES 12 DERNIERS MOIS
 exports.getMonthlyEvolution = asyncHandler(async (req, res) => {
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
@@ -234,102 +285,12 @@ exports.getReservationCountBySuccursale = asyncHandler(async (req, res) => {
       [Sequelize.fn("COUNT", "idreservation"), "reservationCount"],
     ],
     group: ["idsuccursalelivraison"],
+    include: [
+      { model: Succursale, as: "succursaleLivraison", attributes: ["nom"] },
+    ], // Optionnel: pour avoir le nom de la succursale
   });
   res.json(stats);
 });
-
-// RÉCUPÉRER LES RÉSERVATIONS FILTRÉES
-// Permet de filtrer les réservations selon plusieurs critères
-// exports.getReservationsFiltrees = asyncHandler(async (req, res) => {
-//   const {
-//     numeroreservation,
-//     nom,
-//     prenom,
-//     succursale,
-//     date_livraison,
-//     date_creation,
-//   } = req.query;
-
-//   const where = {};
-
-//   if (numeroreservation) where.numeroreservation = numeroreservation;
-//   if (nom) where.nomclient = { [Op.iLike]: `%${nom}%` };
-//   if (prenom) where.prenomclient = { [Op.iLike]: `%${prenom}%` };
-//   if (succursale) where.idsuccursalelivraison = succursale;
-//   if (date_livraison) where.datelivraison = date_livraison;
-//   if (date_creation) where.datereservation = date_creation;
-
-//   const reservations = await Reservation.findAll({ where });
-//   res.json(reservations);
-// });
-// RÉCUPÉRER LES 5 DERNIÈRES RÉSERVATIONS
-exports.getRecentReservations = asyncHandler(async (req, res) => {
-  const recentReservations = await Reservation.findAll({
-    order: [["datereservation", "DESC"]],
-    limit: 5,
-    include: [
-      { model: Client, attributes: ["nom", "prenom"] },
-      { model: Vehicule, attributes: ["marque", "modele"] },
-    ],
-  });
-  res.json(recentReservations);
-});
-
-// RÉCUPÉRER LE NOMBRE DE RÉSERVATIONS ACTIVES
-exports.getActiveReservationsCount = asyncHandler(async (req, res) => {
-  const today = new Date();
-  const count = await Reservation.count({
-    where: {
-      statut: { [Op.in]: ["Confirmée", "Active"] },
-      daterdv: { [Op.lte]: today },
-      dateretour: { [Op.gte]: today },
-    },
-  });
-  res.json({ count });
-});
-
-// RÉCUPÉRER LE TOP 3 DES VÉHICULES LES PLUS RÉSERVÉS
-exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
-  const topVehicles = await Reservation.findAll({
-    // 1. Compter les réservations et nommer le résultat 'reservationCount'
-    attributes: [
-      "idvehicule",
-      [Sequelize.fn("COUNT", Sequelize.col("idvehicule")), "reservationCount"],
-    ],
-
-    // 2. Joindre la table Vehicule pour obtenir le nom du véhicule
-    include: [
-      {
-        model: Vehicule,
-        attributes: ["marque", "modele"], // On ne récupère que ce qui est utile
-        required: true, // S'assurer que les réservations sans véhicule ne sont pas comptées
-      },
-    ],
-
-    // 3. Grouper par ID de véhicule ET par les colonnes du véhicule inclus
-    group: [
-      "idvehicule",
-      "Vehicule.idvehicule", // Sequelize demande de grouper aussi par les colonnes du modèle inclus
-      "Vehicule.marque",
-      "Vehicule.modele",
-    ],
-
-    // 4. Trier par le nombre de réservations, du plus grand au plus petit
-    order: [[Sequelize.literal("reservationCount"), "DESC"]],
-
-    // 5. Ne garder que les 3 premiers résultats
-    limit: 3,
-
-    // On enlève les métadonnées inutiles de Sequelize pour un résultat plus propre
-    raw: true,
-    nest: true,
-  });
-
-  res.json(topVehicles);
-});
-
-// RÉCUPÉRER LE TOP 3 DES SUCCURSALES PAR RÉSERVATION
-// 🚨 Cette fonction doit retourner les succursales les plus utilisées (top 3)
 
 exports.getTopSuccursalesByReservation = asyncHandler(async (req, res) => {
   const result = await Reservation.findAll({
@@ -349,6 +310,23 @@ exports.getTopSuccursalesByReservation = asyncHandler(async (req, res) => {
   res.json(result); // Exemple : [{ idsuccursalelivraison: 2, reservationCount: 20 }, ...]
 });
 
+// RÉCUPÉRER LES VÉHICULES LES PLUS RÉSERVÉS (TOP 3)
+exports.getTopReservedVehicles = asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 3;
+  const topVehicles = await Reservation.findAll({
+    attributes: [
+      "idvehicule",
+      [Sequelize.fn("COUNT", Sequelize.col("idvehicule")), "reservationCount"],
+    ],
+    group: ["idvehicule"],
+    order: [[Sequelize.fn("COUNT", Sequelize.col("idvehicule")), "DESC"]],
+    limit: limit,
+    raw: true,
+  });
+  const topVehicleIds = topVehicles.map((v) => v.idvehicule);
+  res.json(topVehicleIds);
+});
+
 /**
  * [ORCHESTRATION - Étape 1]
  * Initie le processus de checkout.
@@ -358,197 +336,191 @@ exports.getTopSuccursalesByReservation = asyncHandler(async (req, res) => {
 
 // --- FONCTION D'ORCHESTRATION DU PAIEMENT ---
 // --- FONCTION D'ORCHESTRATION DU PAIEMENT (MODIFIÉE) ---
+// --- FONCTION D'ORCHESTRATION DU PAIEMENT (MODIFIÉE) ---
 exports.initiateCheckout = asyncHandler(async (req, res) => {
   console.log("--- [Reservation-Service] Début de initiateCheckout ---");
-  console.log("[initiateCheckout] Body reçu:", req.body);
-  try {
-    const { idvehicule, datedebut, datefin, idclient, idsuccursalelivraison } =
-      req.body;
+  const {
+    idvehicule,
+    datedebut,
+    datefin,
+    idclient,
+    idsuccursalelivraison,
+    idsuccursaleretour,
+  } = req.body;
 
-    console.log(
-      `[initiateCheckout] Appel à ${GATEWAY_URL}/vehicules/${idvehicule}`
-    );
-    console.log(
-      `[initiateCheckout] Appel à ${GATEWAY_URL}/succursales/${idsuccursalelivraison}`
-    );
-    const [vehiculeResponse, succursaleDepartResponse] = await Promise.all([
-      axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`),
-      axios.get(`${GATEWAY_URL}/succursales/${idsuccursalelivraison}`),
-    ]);
-    const vehicule = vehiculeResponse.data;
-    console.log("vehicule:", vehicule);
-    const succursaleDepart = succursaleDepartResponse.data;
-    console.log("[initiateCheckout] Succursale de départ:", succursaleDepart);
+  const [vehiculeResponse, succursaleDepartResponse] = await Promise.all([
+    axios.get(`${GATEWAY_URL}/vehicules/${idvehicule}`),
+    axios.get(`${GATEWAY_URL}/succursales/${idsuccursalelivraison}`),
+  ]);
+  const vehicule = vehiculeResponse.data;
+  const succursaleDepart = succursaleDepartResponse.data;
 
-    // Vérification des dates
-    console.log(
-      `[initiateCheckout] datedebut: ${datedebut}, datefin: ${datefin}`
-    );
-    const nbJours = Math.max(
-      1,
-      differenceInDays(new Date(datefin), new Date(datedebut))
-    );
-    console.log(`[initiateCheckout] Nombre de jours calculé: ${nbJours}`);
-    const montantTotalLocation = nbJours * vehicule.tarifjournalier;
-    console.log(
-      `[initiateCheckout] Montant total location (hors taxes): ${montantTotalLocation}`
-    );
+  const nbJours = Math.max(
+    1,
+    differenceInDays(new Date(datefin), new Date(datedebut))
+  );
+  const montantTotalLocation = nbJours * vehicule.tarifjournalier;
 
-    // ✅ 3. APPEL AU SERVICE DE TAXES
-    console.log(
-      `[initiateCheckout] Appel à ${GATEWAY_URL}/taxes/calculate avec pays=${succursaleDepart.pays}, province=${succursaleDepart.province}, montant_hors_taxe=${montantTotalLocation}`
-    );
-    const taxeResponse = await axios.post(`${GATEWAY_URL}/taxes/calculate`, {
-      pays: succursaleDepart.pays,
-      province: succursaleDepart.province,
-      montant_hors_taxe: montantTotalLocation,
-    });
-    const taxeInfo = taxeResponse.data;
-    console.log("[initiateCheckout] Réponse taxe:", taxeInfo);
+  const taxeResponse = await axios.post(`${GATEWAY_URL}/taxes/calculate`, {
+    pays: succursaleDepart.pays,
+    province: succursaleDepart.province,
+    montant_hors_taxe: montantTotalLocation,
+  });
+  const taxeInfo = taxeResponse.data;
 
-    // ... (logique de paiement Stripe...)
-    console.log(
-      "[initiateCheckout] Appel à Stripe pour créer l'intention de paiement..."
-    );
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(Number(taxeInfo.montant_ttc) * 100), // Stripe attend des centimes
-      currency: "cad", // ou 'usd'
-      metadata: {
-        idclient,
-        idvehicule,
-        // autres infos utiles
-      },
-    });
-    const paiementIntentResponse = {
-      data: {
-        clientSecret: paymentIntent.client_secret,
-        idintentstripe: paymentIntent.id,
-      },
-    };
-    console.log(
-      "[initiateCheckout] Réponse Stripe:",
-      paiementIntentResponse.data
-    );
+  // ✅ CORRECTION 1: On stocke les IDs critiques dans les métadonnées de Stripe
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(Number(taxeInfo.montant_ttc) * 100),
+    currency: "cad",
+    metadata: {
+      idclient: idclient,
+      idvehicule: idvehicule,
+      idsuccursalelivraison: idsuccursalelivraison,
+      idsuccursaleretour: idsuccursaleretour,
+    },
+  });
+  console.log(
+    `[LOG] Métadonnées Stripe créées avec idclient: ${idclient}, idvehicule: ${idvehicule}`
+  );
 
-    // ✅ 4. ON ENRICHIT LE RECAP AVEC LES TAXES ET TOUTES LES INFOS ATTENDUES
-    const responsePayload = {
-      clientSecret: paiementIntentResponse.data.clientSecret,
-      idintentstripe: paiementIntentResponse.data.idintentstripe,
-      recap: {
-        vehicule, // Objet complet du véhicule
-        succursaleDepart, // Objet complet de la succursale de départ
-        datedebut,
-        datefin,
-        nbJours,
-        montantTotalLocation: taxeInfo.montant_hors_taxe,
-        taxes_detail: taxeInfo.taxes_detail,
-        total_taxes: taxeInfo.total_taxes,
-        montantTTC: taxeInfo.montant_ttc,
-
-        // Ajoute ici d'autres champs si besoin (ex: montantDepot)
-      },
-    };
-    console.log("[initiateCheckout] Payload de réponse:", responsePayload);
-    res.json(responsePayload);
-  } catch (error) {
-    console.error(
-      "[initiateCheckout] ERREUR:",
-      error && error.stack ? error.stack : error
-    );
-    if (error.response) {
-      console.error(
-        "[initiateCheckout] Erreur Axios:",
-        error.response.status,
-        error.response.data
-      );
-    } else if (error.request) {
-      console.error(
-        "[initiateCheckout] Aucune réponse reçue (Axios):",
-        error.request
-      );
-    }
-    res.status(500).json({
-      message: "Erreur lors de l'initiation du paiement.",
-      error: error.message,
-    });
-  }
+  const responsePayload = {
+    clientSecret: paymentIntent.client_secret,
+    idintentstripe: paymentIntent.id,
+    recap: {
+      // Cet objet sert principalement à l'affichage sur la page de paiement
+      vehicule,
+      succursaleDepart,
+      datedebut,
+      datefin,
+      nbJours,
+      montantTotalLocation: taxeInfo.montant_hors_taxe,
+      taxes_detail: taxeInfo.taxes_detail,
+      total_taxes: taxeInfo.total_taxes,
+      montantTTC: taxeInfo.montant_ttc,
+    },
+    // On passe aussi les données brutes pour que le frontend les stocke dans la session
+    reservationData: req.body,
+  };
+  res.json(responsePayload);
 });
 
-// --- FONCTION DE FINALISATION DE LA RÉSERVATION (MODIFIÉE) ---
-// --- FONCTION DE FINALISATION DE LA RÉSERVATION (SIMPLIFIÉE ET CORRIGÉE) ---
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (MODIFIÉE ET ROBUSTE) ---
+// --- FONCTION DE FINALISATION DE LA RÉSERVATION (VERSION FINALE AVEC GESTION DE LA RACE CONDITION) ---
 exports.finalizeReservation = asyncHandler(async (req, res) => {
   console.log("--- [Reservation-Service] Début de finalizeReservation ---");
+  const { idintentstripe, reservationDetails } = req.body;
+
+  if (!idintentstripe) {
+    return res
+      .status(400)
+      .json({ message: "L'identifiant de paiement est manquant." });
+  }
+
+  // On lance une transaction pour garantir que tout est créé, ou rien.
   const transaction = await sequelize.transaction();
+  console.log(`[LOG] Transaction démarrée pour l'intent ${idintentstripe}`);
 
   try {
-    const { idintentstripe, reservationDetails } = req.body;
+    // On ne fait plus de vérification préalable. On essaie directement de créer.
+    // La base de données nous protègera contre les doublons grâce à la contrainte UNIQUE.
 
-    // 1. Vérifier que le paiement Stripe a réussi
     const paymentIntent = await stripe.paymentIntents.retrieve(idintentstripe);
     if (paymentIntent.status !== "succeeded") {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `Le paiement n'a pas réussi. Statut: ${paymentIntent.status}`,
+      });
+    }
+
+    const recap = reservationDetails.recap;
+    const metadata = paymentIntent.metadata;
+
+    if (!recap || !metadata) {
       throw new Error(
-        `Le paiement Stripe n'est pas confirmé. Statut: ${paymentIntent.status}`
+        "Données de réservation ou métadonnées de paiement manquantes."
       );
     }
 
-    const details = reservationDetails.reservationData || reservationDetails;
-    const recap = reservationDetails.recap;
-
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const numeroReservationGenere = `RES-${Date.now()}-${randomSuffix}`;
+    const numeroReservationGenere = `RES-${Date.now()}-${Math.floor(
+      1000 + Math.random() * 9000
+    )}`;
 
     const reservationData = {
       numeroreservation: numeroReservationGenere,
       datereservation: new Date(),
-      daterdv: new Date(details.datedebut),
-      dateretour: new Date(details.datefin),
+      daterdv: new Date(recap.datedebut),
+      dateretour: new Date(recap.datefin),
       montanttotal: parseFloat(recap.montantTotalLocation),
       taxes: parseFloat(recap.total_taxes),
       montantttc: parseFloat(recap.montantTTC),
       statut: "Confirmée",
-      idclient: parseInt(details.idclient, 10),
-      idsuccursalelivraison: parseInt(details.idsuccursalelivraison, 10),
-      idsuccursaleretour: parseInt(details.idsuccursaleretour, 10),
-      idvehicule: parseInt(details.idvehicule, 10),
+      idclient: parseInt(metadata.idclient, 10),
+      idsuccursalelivraison: parseInt(metadata.idsuccursalelivraison, 10),
+      idsuccursaleretour: parseInt(metadata.idsuccursaleretour, 10),
+      idvehicule: parseInt(metadata.idvehicule, 10),
     };
 
-    // 2. Créer la réservation dans la transaction
     const nouvelleReservation = await Reservation.create(reservationData, {
       transaction,
     });
     console.log(
-      `[finalizeReservation] Réservation ${nouvelleReservation.idreservation} créée.`
+      `[SUCCÈS] Réservation ID ${nouvelleReservation.idreservation} créée dans la transaction.`
     );
 
-    // 3. Enregistrer le détail des taxes dans la transaction
+    const paiementData = {
+      datepaiement: new Date(),
+      montant: parseFloat(recap.montantTTC),
+      typepaiement: "paiement",
+      modepaiement: paymentIntent.payment_method_types[0] || "card",
+      idreservation: nouvelleReservation.idreservation,
+      idintentstripe: idintentstripe,
+      statutpaiement: "succeeded",
+      devise: paymentIntent.currency,
+    };
+
+    // L'INSERT qui pourrait échouer à cause de la contrainte UNIQUE
+    await Paiement.create(paiementData, { transaction });
+    console.log(
+      `[SUCCÈS] Paiement lié à la réservation ID ${nouvelleReservation.idreservation} créé dans la transaction.`
+    );
+
     if (recap.taxes_detail && recap.taxes_detail.length > 0) {
       const taxesToCreate = recap.taxes_detail.map((taxe) => ({
         idreservation: nouvelleReservation.idreservation,
         idtaxe: taxe.idtaxe,
       }));
       await TaxesReservation.bulkCreate(taxesToCreate, { transaction });
-      console.log(
-        `[finalizeReservation] Taxes enregistrées pour la réservation ${nouvelleReservation.idreservation}.`
-      );
     }
 
-    // 4. Valider la transaction (Commit)
     await transaction.commit();
+    console.log("[SUCCÈS] Transaction validée avec succès.");
 
-    // 5. Renvoyer la nouvelle réservation au frontend.
-    //    Le frontend l'utilisera sur la page de confirmation.
     res.status(201).json({
       message: "Réservation créée avec succès !",
       reservation: {
         ...nouvelleReservation.toJSON(),
-        // On enrichit avec des infos utiles pour l'affichage de confirmation
         marque: recap.vehicule.marque,
         modele: recap.vehicule.modele,
       },
     });
   } catch (error) {
+    // On annule la transaction
     await transaction.rollback();
-    console.error("--- ERREUR DANS finalizeReservation ---", error);
+
+    // ✅ GESTION SPÉCIFIQUE DE L'ERREUR DE DOUBLON
+    if (error instanceof Sequelize.UniqueConstraintError) {
+      console.warn(
+        `[ATTENTION] Course critique détectée et bloquée par la base de données pour l'intent ${idintentstripe}.`
+      );
+      // On renvoie une réponse positive au frontend pour ne pas afficher d'erreur à l'utilisateur.
+      // La première requête a déjà réussi.
+      return res
+        .status(200)
+        .json({ message: "Cette réservation a déjà été enregistrée." });
+    }
+
+    // Pour toutes les autres erreurs
+    console.error("--- ERREUR INATTENDUE DANS finalizeReservation ---", error);
     res.status(500).json({
       message: "Une erreur interne est survenue, la réservation a été annulée.",
       error: error.message,
@@ -758,92 +730,113 @@ exports.getMyReservationById = asyncHandler(async (req, res) => {
   }
 });
 
-//Fonction pour recuperer une reservation avec tous ses details
+/**
+ * [ADMIN/EMPLOYE] Récupère une réservation avec tous ses détails agrégés.
+ * Fait des appels à d'autres microservices pour enrichir les données.
+ * @route GET /:id/full-details
+ */
 exports.getReservationFullDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const authHeader = req.headers["authorization"]; // Récupère le token du frontend
+  // On récupère le token d'autorisation pour le transmettre aux autres services
+  const authHeader = req.headers["authorization"];
   const options = { headers: { Authorization: authHeader } };
+
   try {
-    // 1. Récupérer la réservation
+    // 1. Récupérer la réservation de base
     const reservation = await Reservation.findByPk(id, { raw: true });
     if (!reservation) {
       return res.status(404).json({ message: "Réservation non trouvée" });
     }
 
-    // 2. Récupérer le client
-    const clientResponse = await axios.get(
+    // 2. Préparer tous les appels aux autres services en parallèle
+    const clientPromise = axios.get(
       `${GATEWAY_URL}/clients/${reservation.idclient}`,
       options
     );
-    const client = clientResponse.data;
-
-    // 3. Récupérer le véhicule
-    const vehiculeResponse = await axios.get(
+    const vehiculePromise = axios.get(
       `${GATEWAY_URL}/vehicules/${reservation.idvehicule}`
     );
-    const vehicule = vehiculeResponse.data;
-
-    // 4. Récupérer les succursales
-    const succLivResponse = await axios.get(
+    const succLivPromise = axios.get(
       `${GATEWAY_URL}/succursales/${reservation.idsuccursalelivraison}`
     );
-    const succRetResponse = await axios.get(
+    const succRetPromise = axios.get(
       `${GATEWAY_URL}/succursales/${reservation.idsuccursaleretour}`
     );
-    const succursaleLivraison = succLivResponse.data;
-    const succursaleRetour = succRetResponse.data;
 
-    // 5. Récupérer la dernière inspection du véhicule
-    let inspection = null;
-    try {
-      const inspectionResponse = await axios.get(
-        `${GATEWAY_URL}/inspections/last/${reservation.idvehicule}`
-      );
-      inspection = inspectionResponse.data;
-    } catch (e) {
-      inspection = null;
-    }
+    // On exécute tous les appels en même temps pour gagner en performance
+    const [clientResponse, vehiculeResponse, succLivResponse, succRetResponse] =
+      await Promise.all([
+        clientPromise,
+        vehiculePromise,
+        succLivPromise,
+        succRetPromise,
+      ]);
 
-    // 6. Récupérer les taxes appliquées à la réservation
-    let taxes = [];
-    try {
-      const taxesResponse = await axios.get(
-        `${GATEWAY_URL}/taxes/by-reservation/${id}`
-      );
-      taxes = taxesResponse.data;
-    } catch (e) {
-      taxes = [];
-    }
-
-    // 7. Retourner l'objet agrégé
+    // 3. Assembler la réponse finale
     res.json({
       ...reservation,
-      Client: client,
-      Vehicule: vehicule,
-      SuccursaleLivraison: succursaleLivraison,
-      SuccursaleRetour: succursaleRetour,
-      Inspection: inspection,
-      Taxes: taxes, // <-- Ajout ici
+      Client: clientResponse.data,
+      Vehicule: vehiculeResponse.data,
+      SuccursaleLivraison: succLivResponse.data,
+      SuccursaleRetour: succRetResponse.data,
     });
   } catch (error) {
-    console.error("Erreur d'agrégation:", error.message);
+    console.error(
+      "Erreur d'agrégation dans getReservationFullDetails:",
+      error.message
+    );
+    // Si une erreur vient d'un autre service, elle sera capturée ici
+    if (error.response) {
+      console.error(
+        "Erreur du service distant:",
+        error.response.status,
+        error.response.data
+      );
+      return res.status(error.response.status).json({
+        message: `Erreur lors de la récupération des détails depuis un service distant.`,
+        serviceError: error.response.data,
+      });
+    }
     res.status(500).json({
-      message: "Erreur lors de l'agrégation des données.",
+      message: "Erreur lors de l'agrégation des données de la réservation.",
       error: error.message,
     });
   }
 });
 
-//Mise a jour statut d'une reservation
+/**
+ * [ADMIN/EMPLOYÉ] Met à jour uniquement le statut d'une réservation existante.
+ * @route PATCH /:id/statut
+ * @param {number} id - Identifiant de la réservation à mettre à jour (dans l'URL)
+ * @body {string} statut - Nouveau statut à appliquer à la réservation
+ * @returns {Object} Réservation mise à jour
+ *
+ * Cette méthode permet de modifier exclusivement le champ "statut" d'une réservation,
+ * sans affecter les autres propriétés. Elle effectue une validation basique sur la présence
+ * du champ "statut" dans la requête, puis applique la modification si la réservation existe.
+ */
 exports.majStatutReservation = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { statut } = req.body;
+
+  // Vérification de la présence du champ "statut" dans la requête
+  if (!statut) {
+    res.status(400);
+    throw new Error("Le champ 'statut' est requis.");
+  }
+
+  // Recherche de la réservation par son identifiant
   const reservation = await Reservation.findByPk(id);
   if (!reservation) {
     res.status(404);
-    throw new Error("Réservation non trouvée");
+    throw new Error("Réservation non trouvée.");
   }
+
+  // Mise à jour du statut uniquement, puis sauvegarde en base
   reservation.statut = statut;
   await reservation.save();
+
   res.json(reservation);
 });
+
+// =================================================================

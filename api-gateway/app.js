@@ -217,3 +217,19 @@ app.use("/taxes", (req, res, next) => {
     proxy(req, res, next);
   });
 });
+
+// Route pour le service dashboard
+app.use("/dashboards", (req, res, next) => {
+  getServiceUrl("dashboard-service", (err, url) => {
+    if (err) {
+      return res.status(502).send("Service dashboard-service indisponible");
+    }
+    const proxy = createProxyMiddleware({
+      target: url,
+      changeOrigin: true,
+      pathRewrite: (path, req) => "/dashboards" + path,
+      proxyTimeout: 10000,
+    });
+    proxy(req, res, next);
+  });
+});

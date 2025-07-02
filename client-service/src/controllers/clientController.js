@@ -250,3 +250,30 @@ exports.getMyClientInfo = async (req, res) => {
     });
   }
 };
+
+// Récupérer un client par l'id utilisateur (utilisé par Reservation-Service)
+exports.getClientByUserId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const client = await Client.findOne({ where: { idutilisateur: id } });
+    if (!client) {
+      return res.status(404).json({ message: "Client non trouvé." });
+    }
+
+    // Récupérer les infos utilisateur via la gateway
+    const response = await axios.get(
+      `http://localhost:3000/auth/utilisateurs/${id}`
+    );
+    const utilisateur = response.data;
+
+    res.json({
+      ...client.toJSON(),
+      utilisateur,
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: "Erreur lors de la récupération du client par userId.",
+      error: err.message,
+    });
+  }
+};

@@ -1,18 +1,18 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
-
-const Succursale = sequelize.define(
-  "Succursale",
-  {
-    idsuccursale: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
+module.exports = (sequelize, DataTypes) => {
+  const Succursale = sequelize.define(
+    "Succursale",
+    {
+      idsuccursale: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
+      // Autres champs ici
     },
-  },
-  {
-    tableName: "succursale",
-    timestamps: false,
-  }
-);
+    {
+      tableName: "succursale",
+      timestamps: false,
+    }
+  );
 
-module.exports = Succursale;
+  return Succursale;
+};

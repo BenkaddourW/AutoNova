@@ -23,16 +23,6 @@ export const getUtilisateurs = async (filters = {}, token) => {
   return [];
 };
 
-export const getUtilisateurStats = async (token) => {
-  const response = await fetch(`${API_URL}/utilisateurs/stats`, {
-    headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
-  if (!response.ok)
-    throw new Error("Erreur lors de la récupération des statistiques");
-  return response.json();
-};
 
 export const createUserByAdmin = async (data, token) => {
   // Correction : mappe succursale -> idsuccursale si présent

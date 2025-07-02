@@ -17,24 +17,28 @@ router.get(
 );
 router.get("/filter-options", vehiculeController.getVehiculeFilterOptions);
 
-// Recherche de véhicules disponibles selon critères
+// --- Routes personnalisées à placer avant /:id ---
+router.get("/public-filter-options", vehiculeController.getPublicFilterOptions);
+router.get("/search", vehiculeController.searchAvailableVehicles);
 router.get("/disponibles", vehiculeController.getVehiculesDisponibles);
+router.get("/featured", vehiculeController.getFeaturedVehicles); // <-- AJOUT
 
 // --- Routes pour le CRUD ---
 router.get("/", vehiculeController.getVehicules);
 router.get("/:id", vehiculeController.getVehiculeById);
 
-// Routes avec validation correcte
+// Création d'un véhicule
 router.post(
   "/",
-  createVehiculeRules, // Utilisez directement createVehiculeRules
+  createVehiculeRules,
   validate,
   vehiculeController.createVehicule
 );
 
+// Mise à jour d'un véhicule
 router.put(
   "/:id",
-  updateVehiculeRules, // Utilisez directement updateVehiculeRules
+  updateVehiculeRules,
   validate,
   vehiculeController.updateVehicule
 );

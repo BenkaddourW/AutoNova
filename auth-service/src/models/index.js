@@ -1,6 +1,6 @@
 const Utilisateur = require("./utilisateur");
 const Role = require("./role");
-const Employe = require("./employe");
+const Employe = require("./employe.js");
 const UtilisateurRole = require("./utilisateur_role");
 
 // Associations

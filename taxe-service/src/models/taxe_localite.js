@@ -7,20 +7,17 @@ const TaxeLocalite = sequelize.define(
     idtaxe: {
       type: DataTypes.INTEGER,
       primaryKey: true,
-      references: {
-        model: "taxe",
-        key: "idtaxe",
-      },
+      allowNull: false,
     },
     pays: {
-      type: DataTypes.STRING(5),
+      type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false,
     },
     province: {
-      type: DataTypes.STRING(10),
+      type: DataTypes.STRING,
       primaryKey: true,
-      allowNull: true, // NULL si la taxe est nationale
+      allowNull: false,
     },
   },
   {
