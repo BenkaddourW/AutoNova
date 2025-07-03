@@ -18,7 +18,7 @@ app.use(morgan("dev"));
 app.get("/contrats/health", (req, res) => res.status(200).send("OK"));
 
 // Routes principales protégées
-app.use("/contrats", require("./routes/contratRoutes"));
+app.use("/client/contrats", require("./routes/contratRoutes"));
 
 // Consul registration
 const consul = new Consul({
